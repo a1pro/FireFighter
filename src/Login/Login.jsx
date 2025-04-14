@@ -16,6 +16,9 @@ import axios from 'axios';
 import {Base_url} from '../utils/ApiKey';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
+const API_URL = 'http://firefighter.a1professionals.com/public/api/v1/login';
+
 const validationSchema = yup.object().shape({
   username: yup
     .string()
@@ -37,46 +40,38 @@ const Login = ({navigation}) => {
   const [loading, setLoading] = useState(false);
 
   //   handleSubmit furncttion
-  const handleSubmit = async (values, {resetForm}) => {
+  const handleSubmit = async (values) => {
     setLoading(true);
     try {
-      const res = await axios({
-        method: 'post',
-        url: Base_url.login,
-        data: {
-          user_name: values.username,
-          password: values.password,
-        },
+      const res = await axios.post(Base_url.login, {
+        user_name: values.username,
+        password: values.password,
       });
-      if (res.data.success === true) {
-        setLoading(false);
-        Alert.alert(res.data.message);
-        const token = res.data.token;
-        console.log('token', token);
-        const role = res.data.data.role;
-        console.log('role', role);
-        if (role) {
-          await AsyncStorage.setItem('role', role);
-        }
-        navigation.navigate('Home');
-        if (token) {
-          await AsyncStorage.setItem('token', token);
-        }
+  
+      if (res.data.success) {
+        const { token, data } = res.data;
+        await AsyncStorage.setItem('token', token);
+        await AsyncStorage.setItem('role', data.role || '');
+  
+        Alert.alert('Success', res.data.message);
+        navigation.replace('Home');
       } else {
-        setLoading(false);
-        alert(res.data.message);
-        console.log(res.data.message);
+        Alert.alert('Error', res.data.message || 'Login failed');
       }
     } catch (error) {
       setLoading(false);
-      console.log(error);
       if (error.response) {
-        console.log('Error Response:', error.response.data);
-        console.log('Error Status:', error.response.status);
-        alert(error.response.data.message);
+        Alert.alert('Login Failed', error.response.data.message || 'Something went wrong');
+      } else if (error.request) {
+        Alert.alert('Network Error', 'Please check your internet connection');
+      } else {
+        Alert.alert('Error', 'Something went wrong');
       }
+    } finally {
+      setLoading(false);
     }
   };
+  
 
   // Token exists, navigate to Home
   useEffect(() => {

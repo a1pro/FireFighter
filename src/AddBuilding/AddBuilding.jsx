@@ -1,41 +1,54 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  Image,
-  ActivityIndicator,
+import React, { useState, useRef, useEffect } from "react";
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  ScrollView, 
+  Alert, 
+  FlatList,
+  Image, 
+  ActivityIndicator, 
 } from "react-native";
 import styles from "../screens/styles/Styles";
 import { Picker } from "@react-native-picker/picker";
 import { launchImageLibrary } from "react-native-image-picker";
 import { Formik } from "formik";
 import * as Yup from "yup";
+import Icon from "react-native-vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { Base_url } from "../utils/ApiKey";
+import Geolocation from "@react-native-community/geolocation";
+import { PermissionsAndroid } from 'react-native';
+import { useNavigation, useRoute } from "@react-navigation/native";
+
+const API_KEY = "9313fcf6cb4945dfbf94b6cadfdae5ce"; 
+const OPENCAGE_API_URL = `https://api.opencagedata.com/geocode/v1/json`;
 
 // Validation Schema
 const validationSchema = Yup.object().shape({
-  buildingAddress: Yup.string().required("Building address is required"),
-  zipcode: Yup.string().required("Zip code is required"),
-  suiteNumber: Yup.string().required("Suite/Unit number is required"),
-  buildingName: Yup.string().required("Building name is required"),
-  totalFloors: Yup.number()
-    .min(1, "Must be at least 1 floor")
-    .required("Total floors are required"),
-  totalBasements: Yup.number().min(0, "Basements cannot be negative"),
+  buildingAddress: Yup.string().required("Building address is required"), 
+  zipcode: Yup.string(), // Optional
+  suiteNumber: Yup.string(), // Optional
+  buildingName: Yup.string(), // Optional
+  totalFloors: Yup.number().min(1, "Must be at least 1 floor"), // Optional
+  totalBasements: Yup.number().min(0, "Basements cannot be negative"), // Optional
 });
 
-const AddBuilding = ({ navigation }) => {
-  const [selectedFloors, setSelectedFloors] = useState([]); // This stores added floor details
-  const [selectedBasements, setSelectedBasements] = useState([]); // This stores added basement details
-  const [floorDetails, setFloorDetails] = useState({}); // This stores floor details (name, image)
-  const [basementDetails, setBasementDetails] = useState({}); // This stores basement details (name, image)
+const AddBuilding = () => {
+  const [selectedFloors, setSelectedFloors] = useState([{ floorNumber: 1 }]);
+  const [selectedBasements, setSelectedBasements] = useState([]);
+  const [floorDetails, setFloorDetails] = useState({});
+  const [basementDetails, setBasementDetails] = useState({});
   const [loading, setLoading] = useState(false);
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [useCurrentLocation, setUseCurrentLocation] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const debounceTimer = useRef(null);
+  const navigation = useNavigation();
+  const route = useRoute();
 
   // Convert value to number safely
   const getNumber = (value) => {
@@ -43,17 +56,50 @@ const AddBuilding = ({ navigation }) => {
     return isNaN(num) || num < 0 ? 0 : num;
   };
 
-  // Add Floor Detail function (this will add an entry for each floor)
+  // Add Floor Detail function
   const addFloorDetail = () => {
     setSelectedFloors([...selectedFloors, { floorNumber: selectedFloors.length + 1 }]);
   };
 
-  // Add Basement Detail function (this will add an entry for each basement)
+  // Add Basement Detail function
   const addBasementDetail = () => {
     setSelectedBasements([...selectedBasements, { basementNumber: selectedBasements.length + 1 }]);
   };
 
-  // Handle image selection for floors and basements
+  // Debounced fetchAddressSuggestions
+  const fetchAddressSuggestions = async (query) => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    if (!query) {
+      setAddressSuggestions([]);
+      return;
+    }
+    debounceTimer.current = setTimeout(async () => {
+      try {
+        const response = await axios.get(OPENCAGE_API_URL, {
+          params: {
+            key: API_KEY,
+            q: encodeURIComponent(query),
+            limit: 10,
+          },
+        });
+        setAddressSuggestions(response.data.results || []);
+      } catch (error) {
+        console.error("OpenCage API Error:", error.response?.data || error.message);
+        setAddressSuggestions([]);
+      }
+    }, 500);
+  };
+
+  const handleAddressSelect = (addressData, setFieldValue) => {
+    const { formatted, geometry, components } = addressData;
+    setFieldValue("buildingAddress", formatted);
+    setLatitude(geometry.lat);
+    setLongitude(geometry.lng);
+    setFieldValue("zipcode", components.postcode || "");
+    setAddressSuggestions([]);
+  };
   const selectImage = (type, number) => {
     launchImageLibrary({ mediaType: "photo", quality: 0.5 }, (response) => {
       if (response.didCancel) return;
@@ -70,63 +116,117 @@ const AddBuilding = ({ navigation }) => {
     });
   };
 
+  // Request location permission
+  const requestLocationPermission = async () => {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: "Location Permission",
+          message: "This app needs access to your location.",
+          buttonNeutral: "Ask Me Later",
+          buttonNegative: "Cancel",
+          buttonPositive: "OK",
+        }
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn(err);
+      return false;
+    }
+  };
+
+  const fetchCurrentLocation = async () => {
+    if (await requestLocationPermission()) {
+      Geolocation.getCurrentPosition(
+        (position) => {
+          setLatitude(position.coords.latitude);
+          setLongitude(position.coords.longitude);
+        },
+        (error) => {
+          Alert.alert("Error", "Unable to fetch location");
+          console.error(error);
+        },
+        { enableHighAccuracy: false, timeout: 15000, maximumAge: 10000 }
+      );
+    } else {
+      Alert.alert("Permission Denied", "Location permission is required to use this feature.");
+    }
+  };
+
+  const handleCheckboxChange = () => {
+    setUseCurrentLocation(!useCurrentLocation);
+    if (!useCurrentLocation) {
+      fetchCurrentLocation();
+    } else {
+      setLatitude(null);
+      setLongitude(null);
+    }
+  };
+
   // handleSubmit function
-  const handleSubmit = async (values) => {
+  const handleSubmitForm = async (values) => {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem("token");
       if (!token) {
         console.error("No token found");
+        setLoading(false);
         return;
       }
-
-      // Create FormData to send images and data
+  
+      // Create a new FormData object
       const formData = new FormData();
-      formData.append("building_name", values.buildingName);
-      formData.append("zipcode", values.zipcode);
-      formData.append("suite_number", values.suiteNumber);
       formData.append("building_address", values.buildingAddress);
+      formData.append("zipcode", values.zipcode || "");
+      formData.append("suite_number", values.suiteNumber || "");
+      formData.append("building_name", values.buildingName || "");
       formData.append("total_floor", values.totalFloors);
       formData.append("total_basement", values.totalBasements);
-
+      formData.append("lat", latitude);
+      formData.append("lon", longitude);
+  
+      // Append floor details and images
       selectedFloors.forEach((floor) => {
-        formData.append("floor_name[]", floorDetails[floor.floorNumber]?.name || "");
+        const floorName = floorDetails[floor.floorNumber]?.name || "";
+        formData.append("floor_name[]", floorName);
+  
         const floorImage = floorDetails[floor.floorNumber]?.image;
         if (floorImage) {
           formData.append("floor_image[]", {
             uri: floorImage.uri,
-            type: floorImage.type || "image/jpeg",
-            name: floorImage.fileName || `floor${floor.floorNumber}.jpg`,
+            type: floorImage.type || "image/jpeg", // adjust if needed
+            name: floorImage.fileName || `floor_${floor.floorNumber}.jpg`,
           });
         }
       });
-
+  
+      // Append basement details and images
       selectedBasements.forEach((basement) => {
-        formData.append("basement_name[]", basementDetails[basement.basementNumber]?.name || "");
+        const basementName = basementDetails[basement.basementNumber]?.name || "";
+        formData.append("basement_name[]", basementName);
+  
         const basementImage = basementDetails[basement.basementNumber]?.image;
         if (basementImage) {
           formData.append("basement_image[]", {
             uri: basementImage.uri,
             type: basementImage.type || "image/jpeg",
-            name: basementImage.fileName || `basement${basement.basementNumber}.jpg`,
+            name: basementImage.fileName || `basement_${basement.basementNumber}.jpg`,
           });
         }
       });
-
-      const res = await axios({
-        method: "POST",
-        url: Base_url.addbuilding,
-        data: formData,
+  
+      // Make the API request with multipart/form-data
+      const res = await axios.post(`${Base_url.addbuilding}`, formData, {
         headers: {
-          "Content-Type": "multipart/form-data",
           Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
         },
       });
-
+  
       if (res.data.success === true) {
         setLoading(false);
         Alert.alert(res.data.message);
-        console.log(res.data.message);
         navigation.navigate("Home");
       } else {
         setLoading(false);
@@ -134,11 +234,11 @@ const AddBuilding = ({ navigation }) => {
       }
     } catch (error) {
       setLoading(false);
-      console.log(error);
+      console.error("Error:", error.response ? error.response.data : error.message);
       Alert.alert("Error", "An unexpected error occurred.");
     }
   };
-
+  
   return (
     <Formik
       initialValues={{
@@ -146,13 +246,23 @@ const AddBuilding = ({ navigation }) => {
         zipcode: "",
         suiteNumber: "",
         buildingName: "",
-        totalFloors: "1",
-        totalBasements: "0",
+        totalFloors: "1",  // Default value for total floors
+        totalBasements: "0",  // Default value for total basements
       }}
       validationSchema={validationSchema}
-      onSubmit={handleSubmit}
+      onSubmit={handleSubmitForm}
     >
-      {({ values, errors, touched, handleChange, handleBlur, handleSubmit }) => {
+      {({ values, errors, touched, handleChange, handleBlur, handleSubmit, setFieldValue }) => {
+        
+        // Listen for navigation params from MapScreen and update buildingAddress field
+        useEffect(() => {
+          if (route.params?.selectedAddress) {
+            setFieldValue("buildingAddress", route.params.selectedAddress);
+            setLatitude(route.params.latitude);
+            setLongitude(route.params.longitude);
+          }
+        }, [route.params, setFieldValue]);
+
         return (
           <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
             <View style={[styles.container, { paddingBottom: 30, paddingTop: 30 }]}>
@@ -164,28 +274,52 @@ const AddBuilding = ({ navigation }) => {
                   style={styles.textfield}
                   placeholderTextColor="#BABFC5"
                   value={values.buildingAddress}
-                  onChangeText={handleChange("buildingAddress")}
+                  onChangeText={(text) => {
+                    handleChange("buildingAddress")(text);
+                    fetchAddressSuggestions(text);
+                  }}
                   onBlur={handleBlur("buildingAddress")}
                 />
                 {touched.buildingAddress && errors.buildingAddress && (
                   <Text style={styles.errortext}>{errors.buildingAddress}</Text>
                 )}
+                {/* Display Address Suggestions */}
+                {addressSuggestions.length > 0 && (
+                  <FlatList
+                    data={addressSuggestions}
+                    keyExtractor={(item, index) => index.toString()}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity onPress={() => handleAddressSelect(item, setFieldValue)}>
+                        <Text>{item.formatted}</Text>
+                      </TouchableOpacity>
+                    )}
+                    nestedScrollEnabled
+                  />
+                )}
               </View>
 
-              {/* Zip Code */}
+              <TouchableOpacity
+                  onPress={() =>
+                    navigation.navigate("MapScreen", { businessAddress: values.buildingAddress })
+                  }
+                  style={{ flexDirection: "row", alignItems: "center" }}
+                >
+                  <Icon name="map" size={20} color="#007bff" />
+                  <Text style={{ marginLeft: 2, fontSize: 14, color: "#007bff" }}>
+                    Select from Map
+                  </Text>
+                </TouchableOpacity>
+
+              {/* Zip Code (Now Editable) */}
               <View style={styles.textfieldwrapper}>
-                <Text style={styles.label}>Zip Code</Text>
+                <Text style={[styles.label,{marginTop:20}]}>Zip Code</Text>
                 <TextInput
-                  placeholder="Enter zip code"
+                  placeholder="Zip code"
                   style={styles.textfield}
                   placeholderTextColor="#BABFC5"
                   value={values.zipcode}
                   onChangeText={handleChange("zipcode")}
-                  onBlur={handleBlur("zipcode")}
                 />
-                {touched.zipcode && errors.zipcode && (
-                  <Text style={styles.errortext}>{errors.zipcode}</Text>
-                )}
               </View>
 
               {/* Suite/Unit Number */}
@@ -220,7 +354,26 @@ const AddBuilding = ({ navigation }) => {
                 )}
               </View>
 
-              {/* Add Floor Detail Button (Always visible) */}
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
+                <TouchableOpacity
+                  onPress={handleCheckboxChange}
+                  style={{ flexDirection: "row", alignItems: "center", marginRight: 20 }}
+                >
+                  <Icon
+                    name={useCurrentLocation ? "check-box" : "check-box-outline-blank"}
+                    size={24}
+                    color={useCurrentLocation ? "#007bff" : "#aaa"}
+                  />
+                  <Text style={{ marginLeft: 10, fontSize: 16, color: "#333" }}>
+                    Use Current Location
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Select From Map */}
+              
+              </View>
+
+              {/* Add Floor Detail Button */}
               <TouchableOpacity style={styles.btn} onPress={addFloorDetail}>
                 <Text style={styles.btntxt}>Add Floor Detail</Text>
               </TouchableOpacity>
@@ -235,15 +388,14 @@ const AddBuilding = ({ navigation }) => {
                     keyboardType="numeric"
                     value={floor.floorNumber.toString()}
                     onChangeText={(text) => {
-                      const floorNumber = getNumber(text);  // Safely convert the input to a number
+                      const floorNumber = getNumber(text);
                       setSelectedFloors((prevFloors) => {
                         const updatedFloors = [...prevFloors];
-                        updatedFloors[index] = { ...updatedFloors[index], floorNumber }; // Update the specific floor entry
+                        updatedFloors[index] = { ...updatedFloors[index], floorNumber };
                         return updatedFloors;
                       });
                     }}
                   />
-
                   <View style={styles.textfieldwrapper}>
                     <Text style={styles.label}>Floor {floor.floorNumber} Name</Text>
                     <TextInput
@@ -258,14 +410,12 @@ const AddBuilding = ({ navigation }) => {
                       }}
                     />
                   </View>
-
                   <TouchableOpacity
                     style={styles.btn}
                     onPress={() => selectImage("floor", floor.floorNumber)}
                   >
                     <Text style={styles.btntxt}>Upload Floor Image</Text>
                   </TouchableOpacity>
-
                   {floorDetails[floor.floorNumber]?.image && (
                     <Image
                       source={{ uri: floorDetails[floor.floorNumber].image.uri }}
@@ -275,8 +425,8 @@ const AddBuilding = ({ navigation }) => {
                 </View>
               ))}
 
-              {/* Add Basement Detail Button (Always visible) */}
-              <TouchableOpacity style={[styles.btn,{marginBottom:20,marginTop:20}]} onPress={addBasementDetail}>
+              {/* Add Basement Detail Button */}
+              <TouchableOpacity style={[styles.btn, { marginBottom: 20, marginTop: 20 }]} onPress={addBasementDetail}>
                 <Text style={styles.btntxt}>Add Basement Detail</Text>
               </TouchableOpacity>
 
@@ -290,15 +440,14 @@ const AddBuilding = ({ navigation }) => {
                     keyboardType="numeric"
                     value={basement.basementNumber.toString()}
                     onChangeText={(text) => {
-                      const basementNumber = getNumber(text);  // Safely convert the input to a number
+                      const basementNumber = getNumber(text);
                       setSelectedBasements((prevBasements) => {
                         const updatedBasements = [...prevBasements];
-                        updatedBasements[index] = { ...updatedBasements[index], basementNumber }; // Update the specific basement entry
+                        updatedBasements[index] = { ...updatedBasements[index], basementNumber }; 
                         return updatedBasements;
                       });
                     }}
                   />
-
                   <View style={styles.textfieldwrapper}>
                     <Text style={styles.label}>Basement {basement.basementNumber} Name</Text>
                     <TextInput
@@ -313,14 +462,12 @@ const AddBuilding = ({ navigation }) => {
                       }}
                     />
                   </View>
-
                   <TouchableOpacity
                     style={styles.btn}
                     onPress={() => selectImage("basement", basement.basementNumber)}
                   >
                     <Text style={styles.btntxt}>Upload Basement Image</Text>
                   </TouchableOpacity>
-
                   {basementDetails[basement.basementNumber]?.image && (
                     <Image
                       source={{ uri: basementDetails[basement.basementNumber].image.uri }}
@@ -331,7 +478,7 @@ const AddBuilding = ({ navigation }) => {
               ))}
 
               {/* Submit Button */}
-              <TouchableOpacity style={styles.btn} onPress={handleSubmit} disabled={loading}>
+              <TouchableOpacity style={styles.btn} onPress={handleSubmit}>
                 {loading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (

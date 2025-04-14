@@ -1,101 +1,194 @@
-import React, {useState} from 'react';
-import {View, StyleSheet, TextInput, PanResponder} from 'react-native';
-import MapView from 'react-native-maps';
+import React, { useEffect, useState } from 'react';
 import {
-  GestureHandlerRootView,
-  PinchGestureHandler,
-  RotationGestureHandler,
-} from 'react-native-gesture-handler';
+  View,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  Modal,
+  FlatList,
+} from 'react-native';
+import MapView, { Marker, UrlTile } from 'react-native-maps';
+import { useDispatch, useSelector } from 'react-redux';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { getBuilding } from '../../redux/GetBuildingSlice';
+import { useNavigation } from '@react-navigation/native';
 
 const Maps = () => {
-  // State for draggable icon position
-  const [iconPosition, setIconPosition] = useState({x: 100, y: 100});
+  const dispatch = useDispatch();
+  const navigation = useNavigation();
+  const buildingData = useSelector(state => state.getbuildingdata.data);
+  const loading = useSelector(state => state.getbuildingdata.loading);
+  const error = useSelector(state => state.getbuildingdata.error);
 
-  // States for pinch-to-zoom and rotation
-  const [scale, setScale] = useState(1);
-  const [rotation, setRotation] = useState(0);
+  useEffect(() => {
+    dispatch(getBuilding());
+  }, [dispatch]);
 
-  // PanResponder for dragging the icon
-  const panResponder = PanResponder.create({
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderMove: (_, gestureState) => {
-      setIconPosition({
-        x: gestureState.moveX - 25, // Adjust for the center of the icon
-        y: gestureState.moveY - 25,
-      });
-    },
-  });
+  const [mapType, setMapType] = useState('standard');
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [selectedBuilding, setSelectedBuilding] = useState(null); // NEW STATE
+
+  const mapTypes = [
+    { id: 'standard', label: 'Standard' },
+    { id: 'satellite', label: 'Satellite' },
+    { id: 'hybrid', label: 'Hybrid' },
+    { id: 'terrain', label: 'Terrain' },
+  ];
 
   return (
-    <GestureHandlerRootView style={styles.container}>
-      {/* Google Map */}
+    <View style={styles.container}>
       <MapView
+      
         style={styles.map}
+        mapType={mapType}
         initialRegion={{
-          latitude: 37.7749,
-          longitude: -122.4194,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
+          latitude: buildingData?.[0]?.lat ? parseFloat(buildingData[0].lat) : 37.7749,
+          longitude: buildingData?.[0]?.lon ? parseFloat(buildingData[0].lon) : -122.4194,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
         }}
-        mapType="satellite"
-      />
-      {/* Search Bar for DOT/UN Placard Lookup */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          placeholder="Enter DOT/UN Placard"
-          style={styles.searchBar}
+      >
+        <UrlTile
+          urlTemplate="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+          maximumZ={19}
+          flipY={false}
         />
-      </View>
 
-      {/* Draggable, Rotatable, and Scalable Icon */}
-      <PinchGestureHandler
-        onGestureEvent={event => setScale(event.nativeEvent.scale)}>
-        <RotationGestureHandler
-          onGestureEvent={event => setRotation(event.nativeEvent.rotation)}>
-          <View
-            style={[
-              styles.icon,
-              {
-                transform: [{scale}, {rotate: `${rotation}rad`}],
-                top: iconPosition.y,
-                left: iconPosition.x,
-              },
-            ]}
-            {...panResponder.panHandlers}>
+        {/* Render markers with custom modal instead of callout */}
+        {buildingData.map(building => (
+          <Marker
+            key={building.id}
+            coordinate={{
+              latitude: parseFloat(building.lat),
+              longitude: parseFloat(building.lon),
+            }}
+            zIndex={9999}
+            onPress={() => setSelectedBuilding(building)}
+          />
+        ))}
+      </MapView>
+
+      {/* Map type selection button */}
+      <TouchableOpacity style={styles.mapTypeButton} onPress={() => setModalVisible(true)}>
+        <Icon name="layers" size={24} color="white" />
+      </TouchableOpacity>
+
+      {/* Map type selection modal */}
+      <Modal visible={isModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Select Map Type</Text>
+            <FlatList
+              data={mapTypes}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.optionButton} onPress={() => setMapType(item.id)}>
+                  <Text style={styles.optionText}>{item.label}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
+              <Text style={styles.closeButtonText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
-        </RotationGestureHandler>
-      </PinchGestureHandler>
-    </GestureHandlerRootView>
+        </View>
+      </Modal>
+
+      {/* Custom modal when marker is selected */}
+      {selectedBuilding && (
+        <Modal
+          visible={true}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setSelectedBuilding(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{selectedBuilding.building_name}</Text>
+              <Text>{selectedBuilding.building_address}</Text>
+              <TouchableOpacity
+                style={styles.detailsButton}
+                onPress={() => {
+                  setSelectedBuilding(null);
+                  navigation.navigate('BuildingDetails', { buildingData: selectedBuilding });
+                }}
+              >
+                <Text style={styles.detailsButtonText}>View Details</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {flex: 1},
-  map: {flex: 1},
-  searchContainer: {
+  container: { flex: 1 },
+  map: { flex: 1 },
+  mapTypeButton: {
     position: 'absolute',
-    top: 10,
-    width: '100%',
-    paddingHorizontal: 10,
+    bottom: 30,
+    right: 20,
+    backgroundColor: '#007bff',
+    padding: 12,
+    borderRadius: 50,
+    elevation: 5,
   },
-  searchBar: {
-    backgroundColor: '#fff',
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: 250,
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  optionButton: {
+    width: '100%',
     padding: 10,
-    borderRadius: 8,
-    elevation: 2, // Shadow for Android
-    shadowColor: '#000', // Shadow for iOS
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    shadowOffset: {width: 1, height: 2},
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    marginBottom: 5,
+    borderRadius: 5,
   },
-  icon: {
-    position: 'absolute',
-    width: 50,
-    height: 50,
+  optionText: {
+    fontSize: 16,
   },
-  iconImage: {
-    width: '100%',
-    height: '100%',
+  closeButton: {
+    marginTop: 10,
+  },
+  closeButtonText: {
+    color: 'red',
+    fontSize: 16,
+  },
+  modalContent: {
+    width: 300,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+  },
+  detailsButton: {
+    marginTop: 15,
+    backgroundColor: '#007bff',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 5,
+  },
+  detailsButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
 

@@ -9,9 +9,9 @@ import Header from "../component/Header";
 const Gallery = ({ route, navigation }) => {
     const [galleryData, setGalleryData] = useState([]);
     const { id } = route.params;
-    console.log("buildingID",id);
+    console.log("buildingID", id);
 
-    // Fetch the gallery data
+
     const getGalleryapi = async () => {
         try {
             let token = await AsyncStorage.getItem('token');
@@ -33,7 +33,7 @@ const Gallery = ({ route, navigation }) => {
 
             if (res.data.success === true) {
                 setGalleryData(res.data.data);
-                console.log("GalleryData",res.data.data);
+                console.log("GalleryData", res.data.data);
             } else {
                 console.log("No gallery data found");
             }
@@ -68,14 +68,26 @@ const Gallery = ({ route, navigation }) => {
                         overflow: 'hidden'
                     }}>
                         <View style={{ width: 100, height: 100 }}>
-                            <Image
-                                source={{ uri: item.image }}
-                                style={{
+                            {item.image ? (
+                                <Image
+                                    source={{ uri: item.image }}
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        resizeMode: 'cover'
+                                    }}
+                                />
+                            ) : (
+                                <View style={{
                                     width: '100%',
                                     height: '100%',
-                                    resizeMode: 'cover'
-                                }}
-                            />
+                                    backgroundColor: '#ccc', // or use a placeholder image
+                                    justifyContent: 'center',
+                                    alignItems: 'center'
+                                }}>
+                                    <Text>No Image</Text>
+                                </View>
+                            )}
                         </View>
                         <Text style={{ marginTop: 10, textAlign: 'center' }}>{item.name}</Text>
                     </View>

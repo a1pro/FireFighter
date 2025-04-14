@@ -10,6 +10,7 @@ const getBuilding = createAsyncThunk(
     try {
       // Get token from AsyncStorage
       let token = await AsyncStorage.getItem('token');
+      console.log('tokkeeennn',token)
       
       if (!token) {
         return rejectWithValue('No token found');
@@ -53,7 +54,7 @@ const GetBuildingSlice = createSlice({
       })
       .addCase(getBuilding.fulfilled, (state, action) => {
         // Log the data when the action is fulfilled
-        console.log('Building data fetched successfully:', action.payload);
+        // console.log('Building data fetched successfully:', action.payload);
         
         state.data = action.payload;
         state.loading = false;

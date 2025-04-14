@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "891569534521",
+    "project_id": "firefighter-992d5",
+    "storage_bucket": "firefighter-992d5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:891569534521:android:05041f91b4848bdd3fffe8",
+        "android_client_info": {
+          "package_name": "com.firefighter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBwT5gy8SumGsjmNVgzYPQvWfe7stWyJM0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

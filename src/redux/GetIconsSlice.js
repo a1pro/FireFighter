@@ -46,7 +46,7 @@ const GetIconSlice = createSlice({
                 })
                 .addCase(getIcon.fulfilled, (state, action) => {
                     state.data = action.payload;
-                    console.log('Building data fetched successfully:', action.payload);
+                    // console.log('Building data fetched successfully:', action.payload);
                     state.loading = false;
                     })
                     .addCase(getIcon.rejected, (state, action) => {

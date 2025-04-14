@@ -14,6 +14,8 @@ import ForgetPasswordOtp from "../ForgetPassword/ForgetPasswordOtp";
 import ResetPassword from "../ForgetPassword/ResetPassword";
 import Gallery from "../Gallery/Gallery";
 import ImageSlider from "../Gallery/ImageSlider";
+import EditBuilding from "../FloorsDetails/EditBuilding";
+import MapScreen from "../screens/Maps/MapScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -88,6 +90,16 @@ const StackNavigation = () => {
       <Stack.Screen
         name="ImageSlider"
         component={ImageSlider}
+        options={{ headerShown: false }}
+      />
+        <Stack.Screen
+        name="EditBuilding"
+        component={EditBuilding}
+        options={{ headerShown: false }}
+      />
+        <Stack.Screen
+        name="MapScreen"
+        component={MapScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
