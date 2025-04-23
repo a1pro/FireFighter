@@ -23,7 +23,7 @@ const getIcon = createAsyncThunk('getIcon',async(_,{rejectWithValue})=>{
               },
         })
         //Log the data fetched from the API
-        console.log("Fetched Icon data",res.data.data)
+        // console.log("Fetched Icon data",res.data.data)
         return res.data.data;
     } catch (error) {
      console.log(error);   

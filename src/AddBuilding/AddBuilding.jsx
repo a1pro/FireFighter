@@ -283,8 +283,7 @@ const AddBuilding = () => {
                 {touched.buildingAddress && errors.buildingAddress && (
                   <Text style={styles.errortext}>{errors.buildingAddress}</Text>
                 )}
-                {/* Display Address Suggestions */}
-                {addressSuggestions.length > 0 && (
+                 {addressSuggestions.length > 0 && (
                   <FlatList
                     data={addressSuggestions}
                     keyExtractor={(item, index) => index.toString()}
@@ -309,8 +308,6 @@ const AddBuilding = () => {
                     Select from Map
                   </Text>
                 </TouchableOpacity>
-
-              {/* Zip Code (Now Editable) */}
               <View style={styles.textfieldwrapper}>
                 <Text style={[styles.label,{marginTop:20}]}>Zip Code</Text>
                 <TextInput
@@ -321,8 +318,6 @@ const AddBuilding = () => {
                   onChangeText={handleChange("zipcode")}
                 />
               </View>
-
-              {/* Suite/Unit Number */}
               <View style={styles.textfieldwrapper}>
                 <Text style={styles.label}>Suite/ Unit Number</Text>
                 <TextInput
@@ -337,8 +332,6 @@ const AddBuilding = () => {
                   <Text style={styles.errortext}>{errors.suiteNumber}</Text>
                 )}
               </View>
-
-              {/* Business Name */}
               <View style={styles.textfieldwrapper}>
                 <Text style={styles.label}>Business Name</Text>
                 <TextInput
@@ -368,17 +361,10 @@ const AddBuilding = () => {
                     Use Current Location
                   </Text>
                 </TouchableOpacity>
-
-                {/* Select From Map */}
-              
               </View>
-
-              {/* Add Floor Detail Button */}
               <TouchableOpacity style={styles.btn} onPress={addFloorDetail}>
                 <Text style={styles.btntxt}>Add Floor Detail</Text>
               </TouchableOpacity>
-
-              {/* Render Floor Number and Floor Name Fields */}
               {selectedFloors.map((floor, index) => (
                 <View key={index} style={{ marginTop: 20 }}>
                   <Text style={styles.label}>Enter Floor Number</Text>

@@ -8,7 +8,7 @@ import {
   Alert,
   Image,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, UrlTile } from "react-native-maps";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import axios from "axios";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -116,6 +116,11 @@ const MapScreen = () => {
           longitudeDelta: 0.01,
         }}
       >
+      <UrlTile
+                urlTemplate="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+                maximumZ={19}
+                flipY={false}
+              />
         {selectedLocation && (
           <Marker
             coordinate={selectedLocation}

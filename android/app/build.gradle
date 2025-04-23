@@ -1,7 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
-// apply plugin: 'com.google.gms.google-services'
+apply plugin: 'com.google.gms.google-services'
 /**
  * This is the configuration block to customize your React Native Android app.
  */
@@ -55,11 +55,9 @@ android {
 
 dependencies {
     implementation("com.facebook.react:react-android")
-    //  implementation (platform('com.google.firebase:firebase-bom:33.11.0'))
-    // implementation 'com.google.firebase:firebase-analytics'
+    implementation platform('com.google.firebase:firebase-bom:32.7.3')
+    implementation 'com.google.firebase:firebase-analytics'
     implementation project(':react-native-vector-icons')
-
-    // Mapbox dependencies
     implementation 'com.mapbox.maps:android:10.6.0' 
     implementation 'com.mapbox.mapboxsdk:mapbox-sdk-turf:5.8.0'
 

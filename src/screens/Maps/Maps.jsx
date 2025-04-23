@@ -26,7 +26,7 @@ const Maps = () => {
 
   const [mapType, setMapType] = useState('standard');
   const [isModalVisible, setModalVisible] = useState(false);
-  const [selectedBuilding, setSelectedBuilding] = useState(null); // NEW STATE
+  const [selectedBuilding, setSelectedBuilding] = useState(null); 
 
   const mapTypes = [
     { id: 'standard', label: 'Standard' },
@@ -38,7 +38,7 @@ const Maps = () => {
   return (
     <View style={styles.container}>
       <MapView
-      
+
         style={styles.map}
         mapType={mapType}
         initialRegion={{
@@ -54,7 +54,7 @@ const Maps = () => {
           flipY={false}
         />
 
-        {/* Render markers with custom modal instead of callout */}
+        
         {buildingData.map(building => (
           <Marker
             key={building.id}
@@ -68,12 +68,11 @@ const Maps = () => {
         ))}
       </MapView>
 
-      {/* Map type selection button */}
       <TouchableOpacity style={styles.mapTypeButton} onPress={() => setModalVisible(true)}>
         <Icon name="layers" size={24} color="white" />
       </TouchableOpacity>
 
-      {/* Map type selection modal */}
+    
       <Modal visible={isModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -94,7 +93,7 @@ const Maps = () => {
         </View>
       </Modal>
 
-      {/* Custom modal when marker is selected */}
+    
       {selectedBuilding && (
         <Modal
           visible={true}
@@ -145,7 +144,7 @@ const styles = StyleSheet.create({
     width: 250,
     backgroundColor: 'white',
     padding: 20,
-    borderRadius: 10,
+    borderRadius: 20,
     alignItems: 'center',
   },
   modalTitle: {

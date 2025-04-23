@@ -38,8 +38,6 @@ const validationSchema = yup.object().shape({
 const Login = ({navigation}) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  //   handleSubmit furncttion
   const handleSubmit = async (values) => {
     setLoading(true);
     try {

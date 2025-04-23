@@ -1,5 +1,12 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { FlatList, Image, Text, View, ActivityIndicator, TouchableOpacity } from "react-native";
+import React, { useEffect, useState } from "react";
+import {
+  FlatList,
+  Image,
+  Text,
+  View,
+  ActivityIndicator,
+  TouchableOpacity,
+} from "react-native";
 import styles from "../screens/styles/Styles";
 import axios from "axios";
 import { Base_url } from "../utils/ApiKey";
@@ -7,116 +14,129 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../component/Header";
 
 const Gallery = ({ route, navigation }) => {
-    const [galleryData, setGalleryData] = useState([]);
-    const { id } = route.params;
-    console.log("buildingID", id);
+  const { id, floor } = route.params || {};
+  const buildingId = id ? id : null;
 
+  const floors = Array.isArray(floor)
+    ? floor.map((fid) => ({ id: fid, floor_name: `Floor ${fid}` }))
+    : [];
 
-    const getGalleryapi = async () => {
-        try {
-            let token = await AsyncStorage.getItem('token');
-            if (!token) {
-                console.error('No token found');
-                return;
+  const [floorPreviews, setFloorPreviews] = useState([]); 
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAllFloorsGallery = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) return;
+
+        const previews = [];
+
+        for (let fl of floors) {
+          const payload = {
+            building_id: buildingId.toString(),
+            floor_id: fl.id.toString(),
+          };
+
+          const response = await axios.post(
+            "https://firefighter.a1professionals.net/api/v1/get/floor/gallery",
+            payload,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
             }
-            const res = await axios({
-                method: 'post',
-                url: Base_url.getgallery,
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                data: {
-                    building_id: id
-                }
+          );
+
+          if (response.data.success) {
+            const floorData = response.data.data.floors[0];
+            const floor_image = floorData.floor_image || [];
+            const message = floorData.message || [];
+
+            const formattedData = floor_image.map((img, index) => ({
+              image: img,
+              name: message[index] || "No Message",
+            }));
+
+            previews.push({
+              floor_id: fl.id,
+              floor_name: fl.floor_name,
+              previewImage: formattedData[0]?.image || null,
+              allImages: formattedData.map((d) => d.image),
             });
-
-            if (res.data.success === true) {
-                setGalleryData(res.data.data);
-                console.log("GalleryData", res.data.data);
-            } else {
-                console.log("No gallery data found");
-            }
-        } catch (error) {
-            console.error("Error fetching gallery data:", error);
+          }
         }
-    };
-    useEffect(() => {
-        getGalleryapi();
-    }, []);
 
-    // Memoized navigate function
-    const navigateToSlider = useCallback(
-        (index) => {
-            navigation.navigate('ImageSlider', { images: galleryData.map(img => img.image), initialIndex: index });
-        },
-        [galleryData, navigation]
-    );
-
-    // Render Gallery Item
-    const renderGalleryData = ({ item, index }) => {
-        return (
-            <View style={{ flex: 1, margin: 10 }}>
-                <TouchableOpacity onPress={() => navigateToSlider(index)}>
-                    <View style={{
-                        borderWidth: 2,
-                        borderColor: '#942420',
-                        borderRadius: 10,
-                        padding: 10,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        overflow: 'hidden'
-                    }}>
-                        <View style={{ width: 100, height: 100 }}>
-                            {item.image ? (
-                                <Image
-                                    source={{ uri: item.image }}
-                                    style={{
-                                        width: '100%',
-                                        height: '100%',
-                                        resizeMode: 'cover'
-                                    }}
-                                />
-                            ) : (
-                                <View style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    backgroundColor: '#ccc', // or use a placeholder image
-                                    justifyContent: 'center',
-                                    alignItems: 'center'
-                                }}>
-                                    <Text>No Image</Text>
-                                </View>
-                            )}
-                        </View>
-                        <Text style={{ marginTop: 10, textAlign: 'center' }}>{item.name}</Text>
-                    </View>
-                </TouchableOpacity>
-            </View>
-        );
+        setFloorPreviews(previews);
+      } catch (err) {
+        console.error("Error loading gallery previews:", err.message);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    return (
-        <>
-            <Header title="Gallery" />
-            <View style={styles.container}>
-                {galleryData.length === 0 ? (
-                    <View style={{ flex: 1, justifyContent: 'center' }}>
-                        <ActivityIndicator size="large" color="#942420" />
-                        <Text style={{ textAlign: 'center' }}>Loading...</Text>
-                    </View>
-                ) : (
-                    <FlatList
-                        data={galleryData}
-                        renderItem={renderGalleryData}
-                        keyExtractor={(item, index) => `${item.name}-${index}`}
-                        numColumns={3}
-                        extraData={galleryData}
-                    />
-                )}
-            </View>
-        </>
-    );
+    fetchAllFloorsGallery();
+  }, []);
+
+  const handlePreviewClick = (floorItem) => {
+    if (floorItem.allImages.length === 0) return;
+    navigation.navigate("ImageSlider", {
+      images: floorItem.allImages,
+      initialIndex: 0,
+    });
+  };
+
+  const renderFloorPreview = ({ item }) => (
+    <TouchableOpacity
+      onPress={() => handlePreviewClick(item)}
+      style={{
+        flex: 1,
+        margin: 10,
+        borderWidth: 2,
+        borderColor: "#942420",
+        borderRadius: 10,
+        padding: 10,
+        alignItems: "center",
+      }}
+    >
+      {item.previewImage ? (
+        <Image
+          source={{ uri: item.previewImage }}
+          style={{ width: 100, height: 100, borderRadius: 8 }}
+          resizeMode="cover"
+        />
+      ) : (
+        <Text>No Image</Text>
+      )}
+      <Text style={{ marginTop: 8 }}>{item.floor_name}</Text>
+    </TouchableOpacity>
+  );
+
+  return (
+    <>
+      <Header title="Gallery" />
+      <View style={styles.container}>
+        {loading ? (
+          <View style={{ flex: 1, justifyContent: "center" }}>
+            <ActivityIndicator size="large" color="#942420" />
+            <Text style={{ textAlign: "center" }}>Loading previews...</Text>
+          </View>
+        ) : floorPreviews.length === 0 ? (
+          <Text style={{ textAlign: "center", marginTop: 20 }}>
+            No images found for any floor.
+          </Text>
+        ) : (
+          <FlatList
+            data={floorPreviews}
+            renderItem={renderFloorPreview}
+            keyExtractor={(item) => item.floor_id.toString()}
+            numColumns={2}
+          />
+        )}
+      </View>
+    </>
+  );
 };
 
 export default Gallery;
