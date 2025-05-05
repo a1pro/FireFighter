@@ -29,15 +29,15 @@ const OPENCAGE_API_URL = `https://api.opencagedata.com/geocode/v1/json`;
 // Validation Schema
 const validationSchema = Yup.object().shape({
   buildingAddress: Yup.string().required("Building address is required"), 
-  zipcode: Yup.string(), // Optional
-  suiteNumber: Yup.string(), // Optional
-  buildingName: Yup.string(), // Optional
-  totalFloors: Yup.number().min(1, "Must be at least 1 floor"), // Optional
-  totalBasements: Yup.number().min(0, "Basements cannot be negative"), // Optional
+  zipcode: Yup.string(),
+  suiteNumber: Yup.string(),
+  buildingName: Yup.string(),
+  totalFloors: Yup.number().min(1, "Must be at least 1 floor"),
+  totalBasements: Yup.number().min(0, "Basements cannot be negative"),
 });
 
 const AddBuilding = () => {
-  const [selectedFloors, setSelectedFloors] = useState([{ floorNumber: 1 }]);
+  const [selectedFloors, setSelectedFloors] = useState([]);
   const [selectedBasements, setSelectedBasements] = useState([]);
   const [floorDetails, setFloorDetails] = useState({});
   const [basementDetails, setBasementDetails] = useState({});
@@ -50,7 +50,7 @@ const AddBuilding = () => {
   const navigation = useNavigation();
   const route = useRoute();
 
-  // Convert value to number safely
+  // Safe number conversion
   const getNumber = (value) => {
     const num = parseInt(value, 10);
     return isNaN(num) || num < 0 ? 0 : num;
@@ -58,35 +58,26 @@ const AddBuilding = () => {
 
   // Add Floor Detail function
   const addFloorDetail = () => {
-    setSelectedFloors([...selectedFloors, { floorNumber: selectedFloors.length + 1 }]);
+    setSelectedFloors(prev => [...prev, { floorNumber: prev.length + 1 }]);
   };
 
   // Add Basement Detail function
   const addBasementDetail = () => {
-    setSelectedBasements([...selectedBasements, { basementNumber: selectedBasements.length + 1 }]);
+    setSelectedBasements(prev => [...prev, { basementNumber: prev.length + 1 }]);
   };
 
   // Debounced fetchAddressSuggestions
   const fetchAddressSuggestions = async (query) => {
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
-    if (!query) {
-      setAddressSuggestions([]);
-      return;
-    }
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    if (!query) return setAddressSuggestions([]);
     debounceTimer.current = setTimeout(async () => {
       try {
         const response = await axios.get(OPENCAGE_API_URL, {
-          params: {
-            key: API_KEY,
-            q: encodeURIComponent(query),
-            limit: 10,
-          },
+          params: { key: API_KEY, q: encodeURIComponent(query), limit: 10 },
         });
         setAddressSuggestions(response.data.results || []);
       } catch (error) {
-        console.error("OpenCage API Error:", error.response?.data || error.message);
+        console.error("OpenCage API Error:", error);
         setAddressSuggestions([]);
       }
     }, 500);
@@ -100,6 +91,7 @@ const AddBuilding = () => {
     setFieldValue("zipcode", components.postcode || "");
     setAddressSuggestions([]);
   };
+
   const selectImage = (type, number) => {
     launchImageLibrary({ mediaType: "photo", quality: 0.5 }, (response) => {
       if (response.didCancel) return;
@@ -109,25 +101,19 @@ const AddBuilding = () => {
       }
       const image = response.assets[0];
       if (type === "floor") {
-        setFloorDetails({ ...floorDetails, [number]: { ...floorDetails[number], image } });
+        setFloorDetails(prev => ({ ...prev, [number]: { ...prev[number], image } }));
       } else {
-        setBasementDetails({ ...basementDetails, [number]: { ...basementDetails[number], image } });
+        setBasementDetails(prev => ({ ...prev, [number]: { ...prev[number], image } }));
       }
     });
   };
 
-  // Request location permission
+  // Permissions and location
   const requestLocationPermission = async () => {
     try {
       const granted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        {
-          title: "Location Permission",
-          message: "This app needs access to your location.",
-          buttonNeutral: "Ask Me Later",
-          buttonNegative: "Cancel",
-          buttonPositive: "OK",
-        }
+        { title: "Location Permission", message: "This app needs access to your location." }
       );
       return granted === PermissionsAndroid.RESULTS.GRANTED;
     } catch (err) {
@@ -139,129 +125,108 @@ const AddBuilding = () => {
   const fetchCurrentLocation = async () => {
     if (await requestLocationPermission()) {
       Geolocation.getCurrentPosition(
-        (position) => {
-          setLatitude(position.coords.latitude);
-          setLongitude(position.coords.longitude);
-        },
-        (error) => {
-          Alert.alert("Error", "Unable to fetch location");
-          console.error(error);
-        },
+        pos => { setLatitude(pos.coords.latitude); setLongitude(pos.coords.longitude); },
+        err => { Alert.alert("Error", "Unable to fetch location"); console.error(err); },
         { enableHighAccuracy: false, timeout: 15000, maximumAge: 10000 }
       );
     } else {
-      Alert.alert("Permission Denied", "Location permission is required to use this feature.");
+      Alert.alert("Permission Denied", "Location permission is required.");
     }
   };
 
   const handleCheckboxChange = () => {
-    setUseCurrentLocation(!useCurrentLocation);
-    if (!useCurrentLocation) {
-      fetchCurrentLocation();
-    } else {
-      setLatitude(null);
-      setLongitude(null);
-    }
+    setUseCurrentLocation(prev => !prev);
+    if (!useCurrentLocation) fetchCurrentLocation();
+    else { setLatitude(null); setLongitude(null); }
   };
 
-  // handleSubmit function
+  // Submit handler with default floors/basements fallback
   const handleSubmitForm = async (values) => {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem("token");
-      if (!token) {
-        console.error("No token found");
-        setLoading(false);
-        return;
-      }
-  
-      // Create a new FormData object
+      if (!token) throw new Error("No token found");
+
       const formData = new FormData();
       formData.append("building_address", values.buildingAddress);
       formData.append("zipcode", values.zipcode || "");
       formData.append("suite_number", values.suiteNumber || "");
       formData.append("building_name", values.buildingName || "");
-      formData.append("total_floor", values.totalFloors);
-      formData.append("total_basement", values.totalBasements);
+
+      const floorCount = getNumber(values.totalFloors);
+      const basementCount = getNumber(values.totalBasements);
+
+      // Append totals
+      formData.append("total_floor", floorCount.toString());
+      formData.append("total_basement", basementCount.toString());
       formData.append("lat", latitude);
       formData.append("lon", longitude);
-  
-      // Append floor details and images
-      selectedFloors.forEach((floor) => {
-        const floorName = floorDetails[floor.floorNumber]?.name || "";
-        formData.append("floor_name[]", floorName);
-  
-        const floorImage = floorDetails[floor.floorNumber]?.image;
-        if (floorImage) {
-          formData.append("floor_image[]", {
-            uri: floorImage.uri,
-            type: floorImage.type || "image/jpeg", // adjust if needed
-            name: floorImage.fileName || `floor_${floor.floorNumber}.jpg`,
-          });
+
+      // Determine floors to submit
+      const floorsToSubmit = selectedFloors.length > 0
+        ? selectedFloors
+        : Array.from({ length: floorCount }, (_, i) => ({ floorNumber: i + 1 }));
+
+      floorsToSubmit.forEach(floor => {
+        const num = floor.floorNumber;
+        const name = floorDetails[num]?.name || "";
+        const img = floorDetails[num]?.image;
+        formData.append("floor_name[]", name);
+        formData.append("floor_number[]", num.toString());
+        if (img) {
+          formData.append("floor_image[]", { uri: img.uri, type: img.type || "image/jpeg", name: img.fileName || `floor_${num}.jpg` });
         }
       });
-  
-      // Append basement details and images
-      selectedBasements.forEach((basement) => {
-        const basementName = basementDetails[basement.basementNumber]?.name || "";
-        formData.append("basement_name[]", basementName);
-  
-        const basementImage = basementDetails[basement.basementNumber]?.image;
-        if (basementImage) {
-          formData.append("basement_image[]", {
-            uri: basementImage.uri,
-            type: basementImage.type || "image/jpeg",
-            name: basementImage.fileName || `basement_${basement.basementNumber}.jpg`,
-          });
+
+      // Determine basements to submit
+      const basementsToSubmit = selectedBasements.length > 0
+        ? selectedBasements
+        : Array.from({ length: basementCount }, (_, i) => ({ basementNumber: i + 1 }));
+
+      basementsToSubmit.forEach(bs => {
+        const num = bs.basementNumber;
+        const name = basementDetails[num]?.name || "";
+        const img = basementDetails[num]?.image;
+        formData.append("basement_name[]", name);
+        formData.append("basement_number[]", num.toString());
+        if (img) {
+          formData.append("basement_image[]", { uri: img.uri, type: img.type || "image/jpeg", name: img.fileName || `basement_${num}.jpg` });
         }
       });
-  
-      // Make the API request with multipart/form-data
-      const res = await axios.post(`${Base_url.addbuilding}`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
+
+      // API call
+      const res = await axios.post(Base_url.addbuilding, formData, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
       });
-  
-      if (res.data.success === true) {
-        setLoading(false);
+
+      setLoading(false);
+      if (res.data.success) {
         Alert.alert(res.data.message);
         navigation.navigate("Home");
       } else {
-        setLoading(false);
         Alert.alert("Error", "Failed to add building. Please try again.");
       }
     } catch (error) {
       setLoading(false);
-      console.error("Error:", error.response ? error.response.data : error.message);
-      Alert.alert("Error", "An unexpected error occurred.");
+      console.error(error);
+      Alert.alert("Error", error.message || "An unexpected error occurred.");
     }
-  };
+  };  
+
   
   return (
     <Formik
-      initialValues={{
-        buildingAddress: "",
-        zipcode: "",
-        suiteNumber: "",
-        buildingName: "",
-        totalFloors: "1",  // Default value for total floors
-        totalBasements: "0",  // Default value for total basements
-      }}
+      initialValues={{ buildingAddress: "", zipcode: "", suiteNumber: "", buildingName: "", totalFloors: 1, totalBasements: 0 }}
       validationSchema={validationSchema}
       onSubmit={handleSubmitForm}
-    >
-      {({ values, errors, touched, handleChange, handleBlur, handleSubmit, setFieldValue }) => {
-        
-        // Listen for navigation params from MapScreen and update buildingAddress field
+    >{({ values, errors, touched, handleChange, handleBlur, handleSubmit, setFieldValue }) => {
         useEffect(() => {
           if (route.params?.selectedAddress) {
             setFieldValue("buildingAddress", route.params.selectedAddress);
             setLatitude(route.params.latitude);
             setLongitude(route.params.longitude);
           }
-        }, [route.params, setFieldValue]);
+        }, [route.params]);
 
         return (
           <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
@@ -375,14 +340,15 @@ const AddBuilding = () => {
                     value={floor.floorNumber.toString()}
                     onChangeText={(text) => {
                       const floorNumber = getNumber(text);
-                      setSelectedFloors((prevFloors) => {
-                        const updatedFloors = [...prevFloors];
-                        updatedFloors[index] = { ...updatedFloors[index], floorNumber };
-                        return updatedFloors;
+                      setSelectedFloors((prev) => {
+                        const updated = [...prev];
+                        updated[index].floorNumber = floorNumber;
+                        return updated;
                       });
                     }}
                   />
-                  <View style={styles.textfieldwrapper}>
+
+                  {/* <View style={styles.textfieldwrapper}>
                     <Text style={styles.label}>Floor {floor.floorNumber} Name</Text>
                     <TextInput
                       placeholder={`Enter name for Floor ${floor.floorNumber}`}
@@ -395,7 +361,7 @@ const AddBuilding = () => {
                         });
                       }}
                     />
-                  </View>
+                  </View> */}
                   <TouchableOpacity
                     style={styles.btn}
                     onPress={() => selectImage("floor", floor.floorNumber)}
@@ -434,7 +400,7 @@ const AddBuilding = () => {
                       });
                     }}
                   />
-                  <View style={styles.textfieldwrapper}>
+                  {/* <View style={styles.textfieldwrapper}>
                     <Text style={styles.label}>Basement {basement.basementNumber} Name</Text>
                     <TextInput
                       placeholder={`Enter name for Basement ${basement.basementNumber}`}
@@ -447,7 +413,7 @@ const AddBuilding = () => {
                         });
                       }}
                     />
-                  </View>
+                  </View> */}
                   <TouchableOpacity
                     style={styles.btn}
                     onPress={() => selectImage("basement", basement.basementNumber)}

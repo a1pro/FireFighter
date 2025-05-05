@@ -7,7 +7,7 @@ import {
   FlatList,
   TextInput,
   BackHandler,
-  Alert
+  Alert,
 } from 'react-native';
 import styles from '../screens/styles/Styles';
 import { useDispatch, useSelector } from 'react-redux';
@@ -18,7 +18,6 @@ import axios from 'axios';
 
 const BuildingDetails = ({ route }) => {
   const { buildingData } = route.params;
-  // console.log('dtaus',buildingData)
   const dispatch = useDispatch();
   const icons = useSelector(state => state.geticondata.data);
   const navigation = useNavigation();
@@ -27,23 +26,7 @@ const BuildingDetails = ({ route }) => {
   const [otpData, setOtpData] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Merge floors and basements into one list
-  const combinedList = [
-    // mark each item so we know whether it came from floors or basements
-    ...buildingData.floors.map(item => ({
-      ...item,
-      name: item.floor_name,
-      type: 'floor'
-    })),
-    ...buildingData.basements.map(item => ({
-      ...item,
-      name: item.basement_name,
-      type: 'basement'
-    }))
-  ];
-
   useEffect(() => {
-    // Override hardware back to go Home
     const backAction = () => {
       navigation.navigate('Home');
       return true;
@@ -112,14 +95,14 @@ const BuildingDetails = ({ route }) => {
     return cat ? cat.icons.length : 0;
   };
 
-  const renderItem = ({ item }) => (
+  const renderItem = type => ({ item }) => (
     <TouchableOpacity
       style={{
         flexDirection: 'row',
         backgroundColor: '#fff',
         padding: 10,
         borderBottomWidth: 1,
-        borderColor: '#ccc'
+        borderColor: '#ccc',
       }}
       onPress={() =>
         navigation.navigate('FloorDetails', {
@@ -127,18 +110,42 @@ const BuildingDetails = ({ route }) => {
           lat: buildingData.lat,
           lon: buildingData.lon,
           buildingId: buildingData.id,
-          floorId: item.type === 'floor' ? item.id : null,
-          basementId: item.type === 'basement' ? item.id : null,
+          floorId: type === 'floor' ? item.id : null,
+          basementId: type === 'basement' ? item.id : null,
+          floorNumber: type === 'floor' ? item.floor_number : null,
+          basementNumber: type === 'basement' ? item.basement_number : null,
         })
       }
     >
-      <Text style={{ flex: 1, textAlign: 'center' }}>{item.name}</Text>
+      <Text style={{ flex: 1, textAlign: 'center' }}>
+        {type === 'floor' ? item.floor_number : item.basement_number}
+      </Text>
       {icons.map((iconCategory, idx) => (
         <Text key={idx} style={{ flex: 1, textAlign: 'center' }}>
           {getCategoryCount(iconCategory.category_name)}
         </Text>
       ))}
     </TouchableOpacity>
+  );
+  const renderHeader = firstColumnTitle => (
+    <View
+      style={{
+        flexDirection: 'row',
+        backgroundColor: '#fff',
+        padding: 10,
+        borderBottomWidth: 1,
+        borderColor: '#ccc',
+      }}
+    >
+      <Text style={{ flex: 1, fontWeight: 'bold', textAlign: 'center' }}>
+        {firstColumnTitle}
+      </Text>
+      {icons.map((icon, i) => (
+        <Text key={i} style={{ flex: 1, fontWeight: 'bold', textAlign: 'center' }}>
+          {icon.category_name}
+        </Text>
+      ))}
+    </View>
   );
 
   return (
@@ -168,7 +175,8 @@ const BuildingDetails = ({ route }) => {
           onPress={() =>
             navigation.navigate('Gallery', {
               id: buildingData.id,
-              floor: buildingData.floors.map(f => f.id)
+              floor: buildingData.floors.map(f => f.id),
+              basement: buildingData.basements.map(b => b.id),
             })
           }
           style={[styles.btn, { borderColor: '#CE2127', borderWidth: 1, width: 130 }]}
@@ -189,17 +197,10 @@ const BuildingDetails = ({ route }) => {
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.6)',
             justifyContent: 'center',
-            alignItems: 'center'
+            alignItems: 'center',
           }}
         >
-          <View
-            style={{
-              width: '90%',
-              padding: 20,
-              backgroundColor: '#fff',
-              borderRadius: 10
-            }}
-          >
+          <View style={{ width: '90%', padding: 20, backgroundColor: '#fff', borderRadius: 10 }}>
             <TouchableOpacity
               onPress={() => setOtpModalVisible(false)}
               style={{
@@ -211,7 +212,7 @@ const BuildingDetails = ({ route }) => {
                 height: 35,
                 borderRadius: 20,
                 justifyContent: 'center',
-                alignItems: 'center'
+                alignItems: 'center',
               }}
             >
               <Text style={{ color: '#fff', fontSize: 18 }}>✖</Text>
@@ -220,7 +221,9 @@ const BuildingDetails = ({ route }) => {
             <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center' }}>
               OTP Verification
             </Text>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', textAlign: 'center', color: '#942420' }}>
+            <Text
+              style={{ fontSize: 20, fontWeight: 'bold', textAlign: 'center', color: '#942420' }}
+            >
               {buildingData.building_name}
             </Text>
             <Text
@@ -228,7 +231,7 @@ const BuildingDetails = ({ route }) => {
                 fontSize: 16,
                 color: 'green',
                 textAlign: 'center',
-                marginVertical: 20
+                marginVertical: 20,
               }}
             >
               Verification OTP sent to your registered email
@@ -242,7 +245,7 @@ const BuildingDetails = ({ route }) => {
                 padding: 10,
                 fontSize: 16,
                 textAlign: 'center',
-                marginBottom: 20
+                marginBottom: 20,
               }}
               placeholder="Enter OTP"
               keyboardType="numeric"
@@ -256,7 +259,7 @@ const BuildingDetails = ({ route }) => {
                 backgroundColor: '#CE2127',
                 padding: 12,
                 borderRadius: 5,
-                alignItems: 'center'
+                alignItems: 'center',
               }}
               disabled={loading}
             >
@@ -268,30 +271,41 @@ const BuildingDetails = ({ route }) => {
         </View>
       </Modal>
 
-      {/* Table Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          backgroundColor: '#fff',
-          padding: 10,
-          borderBottomWidth: 1,
-          borderColor: '#ccc'
-        }}
-      >
-        <Text style={{ flex: 1, fontWeight: 'bold', textAlign: 'center' }}>Name</Text>
-        {icons.map((icon, i) => (
-          <Text key={i} style={{ flex: 1, fontWeight: 'bold', textAlign: 'center' }}>
-            {icon.category_name}
+      {/* Floors Section */}
+      {buildingData.floors.length > 0 && (
+        <>
+          <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold', marginVertical: 10 }}>
+            Floors
           </Text>
-        ))}
-      </View>
-
-      {/* Combined Floors + Basements */}
-      <FlatList
-        data={combinedList}
-        keyExtractor={item => `${item.type}-${item.id}`}
-        renderItem={renderItem}
-      />
+          {renderHeader('Floor No.')}
+          <FlatList
+            data={buildingData.floors}
+            keyExtractor={item => `floor-${item.id}`}
+            renderItem={renderItem('floor')}
+          />
+        </>
+      )}
+      {buildingData.basements.length > 0 && (
+        <>
+          <Text
+            style={{
+              color: '#fff',
+              fontSize: 18,
+              fontWeight: 'bold',
+              marginTop: 0,
+              marginBottom: 10,
+            }}
+          >
+            Basements
+          </Text>
+          {renderHeader('Basement No.')}
+          <FlatList
+            data={buildingData.basements}
+            keyExtractor={item => `basement-${item.id}`}
+            renderItem={renderItem('basement')}
+          />
+        </>
+      )}
     </View>
   );
 };

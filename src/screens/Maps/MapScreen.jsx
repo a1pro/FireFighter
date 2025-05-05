@@ -25,6 +25,9 @@ const MapScreen = () => {
   const [formattedAddress, setFormattedAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
+  const [mapType, setMapType] = useState("standard");
+  const [showMapTypeOptions, setShowMapTypeOptions] = useState(false);
+
   const mapRef = useRef(null);
 
   useEffect(() => {
@@ -104,10 +107,11 @@ const MapScreen = () => {
       {loading && (
         <ActivityIndicator size="large" color="#007bff" style={styles.loader} />
       )}
+
       <MapView
         ref={mapRef}
         style={{ flex: 1 }}
-        mapType="standard"
+        mapType={mapType}
         onPress={handleMapPress}
         initialRegion={{
           latitude: selectedLocation?.latitude || 30.7046,
@@ -116,11 +120,12 @@ const MapScreen = () => {
           longitudeDelta: 0.01,
         }}
       >
-      <UrlTile
-                urlTemplate="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-                maximumZ={19}
-                flipY={false}
-              />
+        <UrlTile
+          urlTemplate="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+          maximumZ={19}
+          flipY={false}
+        />
+
         {selectedLocation && (
           <Marker
             coordinate={selectedLocation}
@@ -140,6 +145,33 @@ const MapScreen = () => {
         )}
       </MapView>
 
+      {/* Layer Button */}
+      <TouchableOpacity
+        style={styles.layerButton}
+        onPress={() => setShowMapTypeOptions(!showMapTypeOptions)}
+      >
+        <Icon name="layers-outline" size={28} color="#007bff" />
+      </TouchableOpacity>
+
+      {/* Map Type Options */}
+      {showMapTypeOptions && (
+        <View style={styles.mapTypeOptions}>
+          {["standard", "satellite", "terrain"].map((type) => (
+            <TouchableOpacity
+              key={type}
+              style={styles.mapTypeOption}
+              onPress={() => {
+                setMapType(type);
+                setShowMapTypeOptions(false);
+              }}
+            >
+              <Text style={{ textTransform: "capitalize" }}>{type}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {/* Location Preview Popup */}
       {showPopup && formattedAddress ? (
         <View style={styles.popupContainer}>
           <Image
@@ -219,6 +251,30 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginTop: 10,
     alignSelf: "flex-start",
+  },
+  layerButton: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    backgroundColor: "white",
+    padding: 10,
+    borderRadius: 30,
+    elevation: 4,
+    zIndex: 11,
+  },
+  mapTypeOptions: {
+    position: "absolute",
+    top: 65,
+    right: 20,
+    backgroundColor: "white",
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    elevation: 4,
+    zIndex: 11,
+  },
+  mapTypeOption: {
+    paddingVertical: 6,
   },
 });
 

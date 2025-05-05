@@ -1,20 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Text, TouchableOpacity, View, Image, StyleSheet, FlatList, 
-  BackHandler, LayoutAnimation, UIManager, Platform, 
-  Dimensions, Alert, Modal, TextInput
+import {
+  Text, TouchableOpacity, View, Image, StyleSheet, FlatList,
+  BackHandler, LayoutAnimation, UIManager, Platform,
+  Dimensions, Alert, Modal, TextInput,
+  ScrollView
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { getIcon } from '../redux/GetIconsSlice';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import MapView, { UrlTile, Marker } from 'react-native-maps';
+import MapView, { Callout, Marker, UrlTile } from 'react-native-maps';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import ImageUpload from '../component/ImageUpload'; 
+import ImageUpload from '../component/ImageUpload';
 
 const { width, height } = Dimensions.get('window');
 
+// Enable layout animation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -26,38 +28,51 @@ const layoutAnimation = () => {
 const FloorDetails = ({ route }) => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  const { selectedFloor, lat, lon, buildingId, floorId: initialFloorId,basementId } = route.params;
-  // console.log('base,emt',basementId)
+  const { selectedFloor, lat, lon, buildingId, floorId: initialFloorId, basementId, floorNumber, basementNumber } = route.params;
   const buildingData = useSelector(state => state.getbuildingdata.data);
+
+  const initialType = basementId ? 'basement' : 'floor';
+  const [selectionType, setSelectionType] = useState(initialType);
+  const [currentFloorId, setCurrentFloorId] = useState(initialFloorId);
+  const [currentBasementId, setCurrentBasementId] = useState(basementId);
 
   const [otpModalVisible, setOtpModalVisible] = useState(false);
   const [otpdata, setOtpData] = useState({ otp: '' });
   const [editable, setEditable] = useState(false);
+
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [hiddenCategories, setHiddenCategories] = useState([]);
   const [placedIcons, setPlacedIcons] = useState([]);
   const icons = useSelector(state => state.geticondata.data);
-  
+
   const [mapRegion, setMapRegion] = useState({
     latitude: Number(lat),
     longitude: Number(lon),
     latitudeDelta: 0.001,
     longitudeDelta: 0.001,
   });
-  
+
+  const currentBuilding = buildingData.find(b => Number(b.id) === Number(buildingId));
+  const currentFloor = currentBuilding?.floors?.find(f => Number(f.id) === Number(currentFloorId));
+  const currentBasement = currentBuilding?.basements?.find(b => Number(b.id) === Number(currentBasementId));
+
+  const floorList = currentBuilding?.floors || [];
+  const basementList = currentBuilding?.basements || [];
+
   const [floorModalVisible, setFloorModalVisible] = useState(false);
   const [selectedFloorData, setSelectedFloorData] = useState(selectedFloor);
-  const [currentFloorId, setCurrentFloorId] = useState(initialFloorId);
   const [imageUploadVisible, setImageUploadVisible] = useState(false);
   const [selectedImages, setSelectedImages] = useState([]);
-  const currentBuilding = buildingData.find(b => Number(b.id) === Number(buildingId));
-  const floorList = currentBuilding && currentBuilding.floors ? currentBuilding.floors : [];
-  
+
   useEffect(() => {
     dispatch(getIcon());
-    handleGetIcons(Number(currentFloorId));
-  }, [dispatch, buildingId, currentFloorId]);
-  
+  }, [dispatch]);
+
+  useEffect(() => {
+    const id = selectionType === 'floor' ? currentFloorId : currentBasementId;
+    fetchIcons(selectionType, id);
+  }, [selectionType, currentFloorId, currentBasementId]);
+
   useEffect(() => {
     const backAction = () => {
       layoutAnimation();
@@ -68,169 +83,226 @@ const FloorDetails = ({ route }) => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
     return () => backHandler.remove();
   }, [navigation]);
-  
-  const handleCategoryClick = (categoryName) => {
+
+  const handleCategoryClick = categoryName => {
     if (selectedCategory !== categoryName) {
       setSelectedCategory(categoryName);
       setHiddenCategories(prev => prev.filter(cat => cat !== categoryName));
     } else {
-      if (hiddenCategories.includes(categoryName)) {
-        setHiddenCategories(prev => prev.filter(cat => cat !== categoryName));
-      } else {
-        setHiddenCategories(prev => [...prev, categoryName]);
-      }
+      setHiddenCategories(prev =>
+        prev.includes(categoryName)
+          ? prev.filter(cat => cat !== categoryName)
+          : [...prev, categoryName]
+      );
     }
   };
-  const handleDragEnd = (uid, newCoordinate) => {
-    if (!editable) return;
-    setPlacedIcons(prevIcons =>
-      prevIcons.map(icon =>
-        icon.uid === uid
-          ? { ...icon, latitude: newCoordinate.latitude, longitude: newCoordinate.longitude }
-          : icon
-      )
-    );
-  };
-  
-  const handleIconClick = (icon) => {
-    let newLatitude = Number(lat);
-    let newLongitude = Number(lon);
+
+  const handleIconClick = icon => {
+    let newLat = mapRegion.latitude;
+    let newLon = mapRegion.longitude;
     if (placedIcons.length > 0) {
-      const lastIcon = placedIcons[placedIcons.length - 1];
+      const last = placedIcons[placedIcons.length - 1];
       const offset = 0.0001;
-      newLatitude = lastIcon.latitude + offset;
-      newLongitude = lastIcon.longitude + offset;
+      newLat = last.latitude + offset;
+      newLon = last.longitude + offset;
     }
-    if (!icon.icon_image_url || icon.icon_image_url.trim() === "") {
-      Alert.alert("Error", "This icon does not have a valid image URL.");
-      return;
+    if (!icon.icon_image_url?.trim()) {
+      return Alert.alert('Error', 'This icon does not have a valid image URL.');
     }
     const newIcon = {
       uid: Date.now().toString() + Math.random().toString(),
       icon_id: icon.icon_id,
-      latitude: newLatitude,
-      longitude: newLongitude,
+      latitude: newLat,
+      longitude: newLon,
       iconUrl: icon.icon_image_url,
       category: selectedCategory,
+      drag_icon_id: icon.drag_icon_id,
+      label: ''
     };
     setPlacedIcons(prev => [...prev, newIcon]);
   };
-  
-  const removeIcon = (uid) => {
-    setPlacedIcons(prev => prev.filter(icon => icon.uid !== uid));
-  };
-  const handleGetIcons = async (currentFloorId) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      if (!token) {
-        Alert.alert('Error', 'Token is missing');
-        return;
-      }
-      const response = await axios.post(
-        "https://firefighter.a1professionals.net/api/v1/get/drag/icon",
-        { building_id: buildingId, floor_id: currentFloorId },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          }
-        }
-      );
-      if (response.data.success) {
-        // console.log('Response data for floor', currentFloorId, response.data.data);
-        const validIcons = response.data.data
-          .filter(icon => {
-            if (!icon.icon_image_url || icon.icon_image_url.trim() === "") return false;
-            return Number(icon.floor_id) === Number(currentFloorId);
-          })
-          .map(icon => ({
-            uid: icon.icon_id ? icon.icon_id.toString() : Date.now().toString(),
-            icon_id: icon.icon_id ?? 'unknown',
-            latitude: Number(icon.latitude) || 0,
-            longitude: Number(icon.longitude) || 0,
-            iconUrl: icon.icon_image_url,
-            category: '',
-          }));
-        const uniqueIcons = Array.from(
-          new Map(validIcons.map(icon => [icon.icon_id, icon])).values()
-        );
-        // console.log('Unique icons for floor', currentFloorId, ':', uniqueIcons);
-        setPlacedIcons(uniqueIcons);
-      }
-    } catch (error) {
-      console.error('API Error:', error.response ? error.response.data : error.message);
-      Alert.alert('Error', error.response?.data?.message || 'Something went wrong.');
-    }
-  };
-  const uploadIconsToServer = async () => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      if (!token) {
-        Alert.alert('Error', 'Token is missing');
-        return;
-      }
-      if (!buildingId || !currentFloorId) {
-        Alert.alert('Error', 'Missing required parameters: building_id or floor_id.');
-        return;
-      }
-      if (placedIcons.length === 0) {
-        Alert.alert('Error', 'No icons to save.');
-        return;
-      }
-      const payload = {
-        building_id: buildingId,
-        floor_id: currentFloorId,
-        basement_id: null,
-        icons: placedIcons.map(icon => ({
-          icon_id: icon.icon_id,
-          latitude: icon.latitude,
-          longitude: icon.longitude,
-        }))
-      };
-      const response = await axios.post(
-        'https://firefighter.a1professionals.net/api/v1/drag/icon/save',
-        JSON.stringify(payload),
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          }
-        }
-      );
-      if (response.data.success) {
-        Alert.alert('Success', 'Icons saved successfully.');
-      } else {
-        Alert.alert('Error', response.data.message || 'Failed to save icons.');
-      }
-    } catch (error) {
-      console.error('API Error:', error.response ? error.response.data : error.message);
-      Alert.alert('Error', error.response?.data?.message || 'Something went wrong.');
-    }
-  };
-  const addFloorDetail = async () => {
+
+  const fetchIcons = async (type, id) => {
     try {
       const token = await AsyncStorage.getItem('token');
       if (!token) return Alert.alert('Error', 'Token is missing');
-  
-      if (!buildingId || !currentFloorId) {
-        return Alert.alert('Error', 'Missing building_id or floor_id.');
+
+      const payload = {
+        building_id: buildingId,
+        floor_id: type === 'floor' ? id : null,
+        basement_id: type === 'basement' ? id : null,
+      };
+
+      const { data } = await axios.post(
+        'https://firefighter.a1professionals.net/api/v1/get/drag/icon',
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (data.success) {
+        const valid = data.data
+          .filter(i => i.icon_image_url?.trim())
+          .map(i => ({
+            uid: i.drag_icon_id?.toString(),
+            drag_icon_id: i.drag_icon_id,
+            icon_id: i.icon_id,
+            latitude: Number(i.latitude),
+            longitude: Number(i.longitude),
+            iconUrl: i.icon_image_url,
+            category: i.category_name || '',
+            label: i.message || ''
+          }));
+
+        setPlacedIcons(valid);
       }
-  
+    } catch (err) {
+      console.error('API Error:', err.response?.data || err.message);
+      Alert.alert('Error', err.response?.data?.message || 'Something went wrong.');
+    }
+  };
+
+  const handleDragEnd = (uid, coordinate) => {
+    setPlacedIcons(prev =>
+      prev.map(icon =>
+        icon.uid === uid
+          ? { ...icon, latitude: coordinate.latitude, longitude: coordinate.longitude }
+          : icon
+      )
+    );
+  };
+
+  const handleDeleteIcon = async (uid, dragIconId) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) throw new Error('No token');
+      const res = await axios.post(
+        'https://firefighter.a1professionals.net/api/v1/delete/drag/icon',
+        { drag_icon_id: dragIconId },  // Sending the drag_icon_id to delete the icon
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        layoutAnimation();
+        setPlacedIcons(prev => prev.filter(i => i.uid !== uid));
+      } else {
+        Alert.alert('Error', res.data.message || 'Could not delete icon');
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Something went wrong');
+    }
+  };
+
+
+  // New: Select Floor
+  const handleSelectFloor = (floor) => {
+    setSelectionType('floor');
+    setCurrentFloorId(floor.id);
+    layoutAnimation();
+    if (floor.latitude && floor.longitude) {
+      setMapRegion({
+        latitude: Number(floor.latitude),
+        longitude: Number(floor.longitude),
+        latitudeDelta: 0.001,
+        longitudeDelta: 0.001,
+      });
+    }
+    fetchIcons('floor', floor.id);
+    setFloorModalVisible(false);
+  };
+
+  // New: Select Basement
+  const handleSelectBasement = (basement) => {
+    setSelectionType('basement');
+    setCurrentBasementId(basement.id);
+    layoutAnimation();
+    if (basement.latitude && basement.longitude) {
+      setMapRegion({
+        latitude: Number(basement.latitude),
+        longitude: Number(basement.longitude),
+        latitudeDelta: 0.001,
+        longitudeDelta: 0.001,
+      });
+    }
+    fetchIcons('basement', basement.id);
+    setFloorModalVisible(false);
+  };
+
+  // Upload icons & images
+  const uploadIconsToServer = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return Alert.alert('Error', 'Token missing');
+      if (!placedIcons.length) return Alert.alert('Error', 'No icons to save');
+
       const formData = new FormData();
       formData.append('building_id', buildingId);
-      formData.append('floor_id', currentFloorId);
-      selectedImages.forEach((img, index) => {
-        const floorName = selectedFloorData?.floor_name?.[index] || `Floor ${index + 1}`;
-        const floorNumber = selectedFloorData?.floor_number?.[index] || `${index + 1}`;
-        formData.append('floor_image[]', {
-          uri: img.uri,
-          type: img.type || 'image/jpeg',
-          name: img.fileName || `floor_image_${Date.now() + index}.jpg`,
-        });
-        formData.append('message[]', img.caption || '');
+
+      if (selectionType === 'floor') {
+        formData.append('floor_id', currentFloorId);
+      } else if (selectionType === 'basement') {
+        formData.append('basement_id', currentBasementId);
+      }
+
+      placedIcons.forEach((icon) => {
+        formData.append('icon_id[]', icon.icon_id);
+        formData.append('latitude[]', icon.latitude);
+        formData.append('longitude[]', icon.longitude);
+        formData.append('message[]', icon.label);
       });
-   console.log('data send from Api ',formData)
-      const response = await axios.post(
+
+      console.log('upload to server api ', formData)
+      const { data } = await axios.post(
+        'https://firefighter.a1professionals.net/api/v1/drag/icon/save',
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      data.success
+        ? Alert.alert('Success', 'Icons saved successfully.')
+        : Alert.alert('Error', data.message || 'Failed to save icons.');
+    } catch (err) {
+      console.error('API Error:', err.response?.data || err.message);
+      Alert.alert('Error', err.response?.data?.message || 'Something went wrong.');
+    }
+  };
+
+
+  const addFloorDetail = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return Alert.alert('Error', 'Token missing');
+
+      const formData = new FormData();
+      formData.append('building_id', buildingId);
+
+      if (selectionType === 'floor') {
+        formData.append('floor_id', currentFloorId);
+        selectedImages.forEach((img, idx) => {
+          formData.append('floor_image[]', {
+            uri: img.uri,
+            type: img.type || 'image/jpeg',
+            name: img.fileName || `floor_img_${Date.now()}_${idx}.jpg`,
+          });
+          formData.append('message[]', img.caption || '');
+        });
+      } else if (selectionType === 'basement') {
+        formData.append('basement_id', currentBasementId);
+        selectedImages.forEach((img, idx) => {
+          formData.append('basement_image[]', {
+            uri: img.uri,
+            type: img.type || 'image/jpeg',
+            name: img.fileName || `basement_img_${Date.now()}_${idx}.jpg`,
+          });
+          formData.append('basementmessage[]', img.caption || '');
+        });
+      }
+      console.log('data from add floor api', formData)
+      const { data } = await axios.post(
         'https://firefighter.a1professionals.net/api/v1/add/floor/detail',
         formData,
         {
@@ -240,22 +312,23 @@ const FloorDetails = ({ route }) => {
           },
         }
       );
-      if (response.data.success) {
-        Alert.alert('Success', 'Floor details added successfully.');
-      } else {
-        Alert.alert('Error', response.data.message || 'Failed to add floor details.');
-      }
-    } catch (error) {
-      console.error('API Error:', error.response?.data || error.message);
-      Alert.alert('Error', error.response?.data?.message || 'Something went wrong.');
+
+      data.success
+        ? Alert.alert('Success', 'Details added successfully.')
+        : Alert.alert('Error', data.message || 'Failed to add details.');
+      // console.log('Api Error',data.message)
+    } catch (err) {
+      console.error('API Error:', err.response?.data.message || err.message);
+      Alert.alert('Error', err.response?.data?.message || 'Something went wrong.');
     }
   };
-  
+
+
   const handleSave = async () => {
     await uploadIconsToServer();
     await addFloorDetail();
   };
-  
+
   const handleEditOtp = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
@@ -285,7 +358,7 @@ const FloorDetails = ({ route }) => {
       Alert.alert('Error', error.response?.data?.message || 'Something went wrong.');
     }
   };
-  
+
   const handleSubmit = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
@@ -315,29 +388,36 @@ const FloorDetails = ({ route }) => {
       Alert.alert('Error', 'Something went wrong while verifying OTP');
     }
   };
-  
-  const handleSelectFloor = (floor) => {
-    setSelectedFloorData(floor);
-    setCurrentFloorId(floor.id);
-    handleGetIcons(Number(floor.id));
-    if (floor.latitude && floor.longitude) {
-      setMapRegion({
-        latitude: Number(floor.latitude),
-        longitude: Number(floor.longitude),
-        latitudeDelta: 0.001,
-        longitudeDelta: 0.001,
-      });
-    }
-    setFloorModalVisible(false);
-  };
+
+  // const handleSelectFloor = (floor) => {
+  //   setSelectedFloorData(floor);
+  //   setCurrentFloorId(floor.id);
+  //   handleGetIcons(Number(floor.id));
+  //   if (floor.latitude && floor.longitude) {
+  //     setMapRegion({
+  //       latitude: Number(floor.latitude),
+  //       longitude: Number(floor.longitude),
+  //       latitudeDelta: 0.001,
+  //       longitudeDelta: 0.001,
+  //     });
+  //   }
+  //   setFloorModalVisible(false);
+  // };
   const computeIconSize = () => {
     const baseDelta = 0.001;
     const baseSize = 40;
     let scale = baseDelta / mapRegion.latitudeDelta;
     let size = baseSize * scale;
     if (size < 20) size = 20;
-    if (size > 50) size = 50;
+    if (size > 60) size = 60;
     return size;
+  };
+  const computeLabelWidth = () => {
+    const iconSize = computeIconSize();
+    const min = 60;
+    const max = 120;
+    const w = iconSize * 1.8;
+    return Math.min(max, Math.max(min, w));
   };
 
   return (
@@ -348,117 +428,138 @@ const FloorDetails = ({ route }) => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Floor Layout</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.selectFloorButton}
           onPress={() => setFloorModalVisible(true)}>
           <Text style={styles.selectFloorText}>Select Floor</Text>
         </TouchableOpacity>
       </View>
-      <View style={styles.content}>
-        <View style={styles.sidebar}>
-          {icons && icons.length > 0 ? (
-            icons.map(category => (
-              <TouchableOpacity 
-                key={category.category_name}
-                onPress={() => handleCategoryClick(category.category_name)}
-                style={styles.categoryContainer}>
-                <Image source={{ uri: category.category_image }} style={styles.categoryImage} />
-                <Text style={styles.categoryText}>{category.category_name}</Text>
-              </TouchableOpacity>
-            ))
-          ) : (
-            <Text style={styles.noDataText}>No categories available</Text>
-          )}
-          <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-            <Text style={styles.saveButtonText}>Save</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleEditOtp} style={styles.editButton}>
-            <Text style={styles.editButtonText}>Edit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setImageUploadVisible(true)} style={styles.editButton}>
-            <Text style={styles.editButtonText}>Image upload</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.floorContainer}>
-          <View style={styles.iconSelectionArea}>
-            <Text style={styles.sectionTitle}>Select Icon</Text>
-            <FlatList
-              horizontal
-              data={
-                selectedCategory
-                  ? icons.find(category => category.category_name === selectedCategory)?.icons
-                  : []
-              }
-              keyExtractor={(item, index) => `${item.icon_id}-${index}`}
-              renderItem={({ item, index }) => (
-                <TouchableOpacity onPress={() => handleIconClick(item)} style={styles.iconButton}>
-                  <Image source={{ uri: item.icon_image_url }} style={styles.iconImage} />
+      <ScrollView>
+        <View style={styles.content}>
+          <View style={styles.sidebar}>
+            {icons && icons.length > 0 ? (
+              icons.map(category => (
+                <TouchableOpacity
+                  key={category.category_name}
+                  onPress={() => handleCategoryClick(category.category_name)}
+                  style={styles.categoryContainer}>
+                  <Image source={{ uri: category.category_image }} style={styles.categoryImage} />
+                  <Text style={styles.categoryText}>{category.category_name}</Text>
                 </TouchableOpacity>
-              )}
-              ListEmptyComponent={() => (
-                <Text style={styles.noDataText}>Select a category to see icons</Text>
-              )}
-              contentContainerStyle={styles.iconList}
-              showsHorizontalScrollIndicator={false}
-            />
-          </View>
-          <MapView 
-            style={styles.map} 
-            region={mapRegion}
-            onRegionChangeComplete={(region) => setMapRegion(region)}
-          >
-            <UrlTile
-              urlTemplate="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-              maximumZ={19}
-              flipY={false}
-            />
-            {placedIcons
-              .filter(icon => !hiddenCategories.includes(icon.category))
-              .map((icon, index) => (
-                <Marker
-                  key={`${icon.uid}-${index}`}
-                  coordinate={{ latitude: icon.latitude, longitude: icon.longitude }}
-                  draggable={editable}
-                  onDragEnd={(e) => handleDragEnd(icon.uid, e.nativeEvent.coordinate)}>
-                  <Image
-                    source={{ uri: icon.iconUrl }}
-                    style={[styles.markerIcon, { width: computeIconSize(), height: computeIconSize() }]}
-                    resizeMode="contain"
-                  />
-                </Marker>
               ))
-            }
-          </MapView>
+            ) : (
+              <Text style={styles.noDataText}>No categories available</Text>
+            )}
+            <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
+              <Text style={styles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleEditOtp} style={styles.editButton}>
+              <Text style={styles.editButtonText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setImageUploadVisible(true)} style={styles.editButton}>
+              <Text style={styles.editButtonText}>Image upload</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.floorContainer}>
+            <View style={styles.iconSelectionArea}>
+              <Text style={styles.sectionTitle}>Select Icon</Text>
+              <FlatList
+                horizontal
+                data={selectedCategory ? icons.find(category => category.category_name === selectedCategory)?.icons : []}
+                keyExtractor={(item, index) => `${item.icon_id}-${index}`}
+                renderItem={({ item, index }) => (
+                  <TouchableOpacity onPress={() => handleIconClick(item)} style={styles.iconButton}>
+                    <Image source={{ uri: item.icon_image_url }} style={styles.iconImage} />
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={() => (
+                  <Text style={styles.noDataText}>Select a category to see icons</Text>
+                )}
+                contentContainerStyle={styles.iconList}
+                showsHorizontalScrollIndicator={false}
+              />
+            </View>
+            <MapView style={styles.map} region={mapRegion} onRegionChangeComplete={setMapRegion}>
+              <UrlTile urlTemplate="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}" maximumZ={19} flipY={false} />
+              {placedIcons.map(icon => (
+                <Marker key={icon.uid} coordinate={{ latitude: icon.latitude, longitude: icon.longitude }} draggable={editable} onDragEnd={e => handleDragEnd(icon.uid, e.nativeEvent.coordinate)}>
+                  <View style={styles.markerContainer}>
+                    <Image
+                      source={{ uri: icon.iconUrl }}
+                      style={{
+                        width: computeIconSize(),
+                        height: computeIconSize(),
+                        resizeMode: 'contain',
+                      }}
+                    />
+                    <TextInput
+                      style={styles.iconLabelInput}
+                      placeholder="Label"
+                      value={icon.label}
+                      onChangeText={text =>
+                        setPlacedIcons(prev =>
+                          prev.map(i => (i.uid === icon.uid ? { ...i, label: text } : i))
+                        )
+                      }
+                    />
+                  </View>
+                  {editable && (
+                    <Callout tooltip onPress={() => handleDeleteIcon(icon.uid, icon.drag_icon_id)}>
+                      <View style={styles.calloutContainer}>
+                        <Ionicons name="close-circle" size={30} color="red" />
+                      </View>
+                    </Callout>
+                  )}
+                </Marker>
+              ))}
+            </MapView>
+          </View>
         </View>
-      </View>
-      <Modal
-        visible={floorModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setFloorModalVisible(false)}>
+      </ScrollView>
+      <Modal visible={floorModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.floorModalContainer}>
-            <Text style={styles.modalTitle}>Select a Floor</Text>
+            <Text style={styles.modalTitle}>Select a Level</Text>
+
+            <Text style={styles.sectionLabel}>Floors</Text>
             <FlatList
               data={floorList}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item, index }) => (
-                <TouchableOpacity style={styles.floorItem} onPress={() => handleSelectFloor(item)}>
-                  <Text style={styles.floorText}>
-                    {item.floor_name ? item.floor_name : `Floor ${index + 1}`}
-                  </Text>
+              keyExtractor={item => `floor-${item.id}`}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => handleSelectFloor(item)}
+                  style={styles.floorItem}
+                >
+                  <Text>{item.floor_number ? ` ${item.floor_number}` : `Floor ${item.id}`}</Text>
                 </TouchableOpacity>
               )}
-              ListEmptyComponent={() => (
-                <Text style={styles.noDataText}>No floors available</Text>
-              )}
             />
+
+            {basementList.length > 0 && (
+              <>
+                <Text style={styles.sectionLabel}>Basements</Text>
+                <FlatList
+                  data={basementList}
+                  keyExtractor={item => `basement-${item.id}`}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      onPress={() => handleSelectBasement(item)}
+                      style={styles.floorItem}
+                    >
+                      <Text>{item.basement_number ? ` ${item.basement_number}` : `Basement ${item.id}`}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              </>
+            )}
+
             <TouchableOpacity onPress={() => setFloorModalVisible(false)} style={styles.modalCloseButton}>
               <Text style={styles.modalCloseText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
+
       <Modal
         visible={otpModalVisible}
         animationType="fade"
@@ -498,10 +599,10 @@ const FloorDetails = ({ route }) => {
     </View>
   );
 };
-  
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F2F2F2' },
-  header: { 
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#942420',
@@ -515,7 +616,7 @@ const styles = StyleSheet.create({
   selectFloorButton: { backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 5 },
   selectFloorText: { color: '#942420', fontWeight: '600' },
   content: { flex: 1, flexDirection: 'row' },
-  sidebar: { 
+  sidebar: {
     width: 90,
     backgroundColor: '#FFF',
     paddingVertical: 15,
@@ -532,7 +633,7 @@ const styles = StyleSheet.create({
   editButton: { backgroundColor: '#007bff', padding: 8, borderRadius: 5, marginTop: 10, width: '80%' },
   editButtonText: { color: '#fff', fontSize: 14, textAlign: 'center', fontWeight: '600' },
   floorContainer: { flex: 1, padding: 10, backgroundColor: '#EAEAEA' },
-  iconSelectionArea: { 
+  iconSelectionArea: {
     height: 120,
     backgroundColor: '#FFF',
     padding: 10,
@@ -547,7 +648,7 @@ const styles = StyleSheet.create({
   map: { width: '100%', height: "100%", borderRadius: 10, overflow: 'hidden' },
   markerIcon: { /* Base styles; actual size computed inline */ },
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)' },
-  floorModalContainer: { 
+  floorModalContainer: {
     width: width * 0.8,
     backgroundColor: '#FFF',
     borderRadius: 10,
@@ -570,29 +671,66 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', color: '#942420' },
   modalSubtitle: { fontSize: 16, marginTop: 5, textAlign: 'center', color: '#333' },
   otpMessage: { fontSize: 16, color: '#007bff', fontWeight: '600', textAlign: 'center', marginVertical: 15 },
-  otpInput: { 
-    borderWidth: 1, 
-    borderColor: '#CCC', 
-    borderRadius: 5, 
-    padding: 10, 
-    fontSize: 16, 
-    textAlign: 'center', 
-    width: '80%', 
+  otpInput: {
+    borderWidth: 1,
+    borderColor: '#CCC',
+    borderRadius: 5,
+    padding: 10,
+    fontSize: 16,
+    textAlign: 'center',
+    width: '80%',
     alignSelf: 'center',
     marginBottom: 20,
   },
   submitButton: { backgroundColor: '#CE2127', paddingVertical: 12, borderRadius: 5, alignItems: 'center' },
   submitButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  modalCloseIcon: { 
-    position: 'absolute', 
-    top: -15, 
-    right: -15, 
-    backgroundColor: 'red', 
-    width: 35, 
-    height: 35, 
-    borderRadius: 18, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
+  modalCloseIcon: {
+    position: 'absolute',
+    top: -15,
+    right: -15,
+    backgroundColor: 'red',
+    width: 35,
+    height: 35,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    backgroundColor: 'green',
+    borderRadius: 12,
+    zIndex: 999
+  },
+  markerWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99
+  },
+  calloutContainer: {
+    backgroundColor: 'white',
+    padding: 4,
+    borderRadius: 16,
+  },
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#000"
+  },
+  iconLabelInput: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    marginTop: 4,
+    textAlign: 'center'
+  },
+  markerContainer: {
+   justifyContent:"center",
+
   },
 });
 export default FloorDetails;

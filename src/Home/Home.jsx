@@ -1,294 +1,4 @@
-// import React, { useEffect, useState } from 'react';
-// import {
-//   View,
-//   Text,
-//   TouchableOpacity,
-//   FlatList,
-//   Image,
-//   StyleSheet,
-//   ActivityIndicator,
-//   TextInput,
-// } from 'react-native';
-// import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-// import { useDispatch, useSelector } from 'react-redux';
-// import AsyncStorage from '@react-native-async-storage/async-storage';
-// import { getBuilding } from '../redux/GetBuildingSlice';
-// import axios from 'axios';
-
-// const Home = ({ navigation }) => {
-//   const [role, setRole] = useState(null);
-//   const [searchTerm, setSearchTerm] = useState('');
-//   const [filteredData, setFilteredData] = useState([]);
-//   const dispatch = useDispatch();
-
-//   // Fetching data from redux store
-//   const buildingData = useSelector(state => state.getbuildingdata.data);
-//   const loading = useSelector(state => state.getbuildingdata.loading);
-//   const error = useSelector(state => state.getbuildingdata.error);
-
-//   // Get role from AsyncStorage
-//   const getRole = async () => {
-//     try {
-//       const storedRole = await AsyncStorage.getItem('role');
-//       setRole(storedRole || null);
-//     } catch (error) {
-//       console.log('Error retrieving role:', error);
-//     }
-//   };
-
-//   // Fetch buildings and role on component mount
-//   useEffect(() => {
-//     const fetchData = async () => {
-//       try {
-//         await dispatch(getBuilding()).unwrap();
-//         await getRole();
-//       } catch (err) {
-//         console.error('Error fetching building data:', err);
-//       }
-//     };
-//     fetchData();
-//   }, [dispatch]);
-
-
-//   // Function to handle search input and update filtered data
-//   const handleSearch = async (search) => {
-//     const token = await AsyncStorage.getItem('token');
-//     console.log('yyfyf',token)
-//     if (!token) {
-//       console.error('No token found');
-//       return;
-//     }
-
-//     setSearchTerm(search); // Update search term state
-
-//     if (search.trim() === '') {
-//       // If the search term is empty, reset the filtered data to the full building data
-//       setFilteredData(buildingData);  // Reset to original data (without making API request)
-//     } else {
-//       // Make a POST request with authentication headers
-//       try {
-//         const response = await axios.post(
-//           'https://firefighter.a1professionals.net/api/v1/search/building',
-//           { search: search }, // Sending search term in the body as a key-value pair
-//           {
-//             headers: {
-//               Authorization: `Bearer ${token}`,
-//             },
-//           }
-//         );
-
-//         // Update filtered data with search results
-//         setFilteredData(response.data.data || []);
-//       } catch (error) {
-//         console.error('Error fetching search data:', error);
-//         setFilteredData([]);  // Reset filtered data if error occurs
-//       }
-//     }
-//   };
-
-
-
-
-//   // Render function for FlatList
-//   const renderBuildingsData = ({ item }) => (
-//     <TouchableOpacity
-//       onPress={() => navigation.navigate('BuildingDetails', { buildingData: item })}>
-//       <View style={styles.itemContainer}>
-//         {/* {item.icon_image ? (
-//           <View
-//             style={{
-//               width: 50,
-//               height: 50,
-//               borderWidth: 3,
-//               borderColor: '#942420',
-//               borderRadius: 10,
-//               margin: 4,
-//             }}>
-//             <Image
-//               source={{ uri: item.icon_image }}
-//               style={{ width: '100%', height: '100%', borderRadius: 10 }}
-//             />
-//           </View>
-//         ) : (
-//           <Image
-//             source={require('../assets/school.png')}
-//             style={styles.itemImage}
-//           />
-//         )} */}
-
-//         <Text style={[styles.itemText, { marginLeft: 10 }]}>
-//           {item.building_address}
-//         </Text>
-
-//         {role === 'Editor' && (
-//           <View
-//             style={{
-//               backgroundColor: item.status === '1' ? 'green' : '#CE2127',
-//               borderRadius: 10,
-//               padding: 7,
-//             }}>
-//             <Text
-//               style={{
-//                 color: item.status === '1' ? '#ffff' : '#ffff',
-//                 fontWeight: '600',
-//               }}>
-//               {item.status === '1'
-//                 ? 'Approve'
-//                 : item.status === '0'
-//                   ? 'Pending'
-//                   : ''}
-//             </Text>
-//           </View>
-//         )}
-//       </View>
-//     </TouchableOpacity>
-//   );
-
-//   return (
-//     <View style={styles.container}>
-//       {loading ? (
-//         <View style={styles.loadingContainer}>
-//           <ActivityIndicator size="large" color="#ffffff" />
-//         </View>
-//       ) : error ? (
-//         <View style={styles.errorContainer}>
-//           <Text style={styles.errorText}>Failed to load data: {error}</Text>
-//         </View>
-//       ) : buildingData && buildingData.length > 0 ? (
-//         <>
-//           <View style={{ justifyContent: 'center', alignItems: 'center', backgroundColor: '#942420', padding: 10 }}>
-//             <Image source={require('../assets/white-logo.png')} />
-//           </View>
-//           {/* Search */}
-//           <View style={[styles.textfield, { flexDirection: 'row', width: '100%', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }]}>
-//             <TextInput
-//               placeholder="Search"
-//               placeholderTextColor="#000"
-//               value={searchTerm}
-//               onChangeText={handleSearch}  // Update search term on text change
-//               style={{ flex: 1 }}
-//             />
-//             <MaterialIcons name="search" size={25} color="#000000" />
-//           </View>
-//           <View
-//             style={{
-//               backgroundColor: '#18222C',
-//               flexDirection: 'row',
-//               justifyContent: 'space-between',
-//               paddingVertical: 10,
-//               paddingHorizontal: 10,
-//             }}>
-//             {/* <Text style={[styles.itemText, { color: '#ffff', textAlign: 'auto', fontSize: 15 }]}>
-//               Layout
-//             </Text> */}
-//             <Text style={[styles.itemText, { color: '#ffff', textAlign: 'left', fontSize: 15 }]}>
-//               Business Address
-//             </Text>
-//             <Text style={[styles.itemText, { color: '#ffff', textAlign: 'right', fontSize: 15 }]}>
-//               Status
-//             </Text>
-//           </View>
-//           <FlatList
-//             data={filteredData.length > 0 ? filteredData : buildingData}  // Use filtered data if search results are available
-//             renderItem={renderBuildingsData}
-//             keyExtractor={item => item.id.toString()}
-//             contentContainerStyle={styles.listContainer}
-//           />
-//         </>
-//       ) : (
-//         <View style={styles.emptyContainer}>
-//           <Text style={styles.emptyText}>No building details found for this user</Text>
-//         </View>
-//       )}
-
-//       {/* Role-based Add Building Action Button */}
-//       {role === 'Editor' && (
-//         <TouchableOpacity
-//           onPress={() => navigation.navigate('AddBuilding')}
-//           style={styles.fab}>
-//           <MaterialIcons name="add" size={40} color="#202D3D" />
-//         </TouchableOpacity>
-//       )}
-//     </View>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#202D3D',
-//   },
-//   loadingContainer: {
-//     flex: 1,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   errorContainer: {
-//     flex: 1,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   errorText: {
-//     color: 'red',
-//   },
-//   emptyContainer: {
-//     flex: 1,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   textfield: {
-//     backgroundColor: '#ffff',
-//     borderRadius: 8,
-//     fontSize: 16,
-//     borderWidth: 1,
-//     borderColor: '#BABFC5',
-//     marginTop: 8,
-//     paddingLeft: 15,
-//   },
-//   emptyText: {
-//     color: '#FFFFFF',
-//   },
-//   listContainer: {
-//     paddingBottom: 100,
-//   },
-//   itemContainer: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     backgroundColor: '#7de8e3',
-//     paddingVertical: 10,
-//     paddingHorizontal: 10,
-//     borderBottomWidth: 2,
-//     borderColor: '#ABAFB5',
-//   },
-//   itemImage: {
-//     width: 40,
-//     height: 40,
-//     resizeMode: 'contain',
-//     marginRight: 16,
-//   },
-//   itemText: {
-//     fontSize: 17,
-//     color: '#000',
-//     fontWeight: '500',
-//     flex: 1,
-//     textAlign: 'left',
-//   },
-//   fab: {
-//     position: 'absolute',
-//     bottom: 16,
-//     right: 16,
-//     width: 60,
-//     height: 60,
-//     backgroundColor: '#D9D9D9',
-//     borderRadius: 30,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     elevation: 4,
-//   },
-// });
-
-// export default Home;
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -297,166 +7,259 @@ import {
   StyleSheet,
   ActivityIndicator,
   TextInput,
+  Modal,
+  FlatList,
 } from 'react-native';
+import MapView, { Marker, UrlTile, Callout } from 'react-native-maps';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getBuilding } from '../redux/GetBuildingSlice';
-import MapboxGL from '@rnmapbox/maps';
 
-MapboxGL.setAccessToken('pk.eyJ1Ijoiam9qb2V3ZWIiLCJhIjoiY204MnNrbXI0MHg2MjJqcXIycHJqY3BkOCJ9._dBt2T7sPZGAklVStnyy7w');
+const mapTypeOptions = [
+  { id: 'standard', label: 'Standard' },
+  { id: 'satellite', label: 'Satellite' },
+  { id: 'hybrid', label: 'Hybrid' },
+  { id: 'terrain', label: 'Terrain' },
+];
 
 const Home = ({ navigation }) => {
   const [role, setRole] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredData, setFilteredData] = useState([]);
-  const [selectedBuilding, setSelectedBuilding] = useState(null);
-  const dispatch = useDispatch();
+  const [activeMarkerId, setActiveMarkerId] = useState(null);
+  const [mapType, setMapType] = useState('standard');
+  const [isMapTypeModalVisible, setIsMapTypeModalVisible] = useState(false);
 
-  const buildingData = useSelector(state => state.getbuildingdata.data);
-  const loading = useSelector(state => state.getbuildingdata.loading);
-  const error = useSelector(state => state.getbuildingdata.error);
+  const dispatch = useDispatch();
+  const buildingData = useSelector(s => s.getbuildingdata.data);
+  const loading      = useSelector(s => s.getbuildingdata.loading);
+  const error        = useSelector(s => s.getbuildingdata.error);
+
+  const mapRef = useRef(null);
 
   useEffect(() => {
-    const fetchData = async () => {
+    (async () => {
       try {
         await dispatch(getBuilding()).unwrap();
         const storedRole = await AsyncStorage.getItem('role');
-        setRole(storedRole || null);
+        setRole(storedRole);
       } catch (err) {
-        console.error('Error fetching building data:', err);
+        console.error(err);
       }
-    };
-    fetchData();
+    })();
   }, [dispatch]);
 
-  // Search functionality without API call
+  const displayList = filteredData.length ? filteredData : buildingData;
+
+  const initialRegion = {
+    latitude:  displayList[0]?.lat ? +displayList[0].lat : 37.7749,
+    longitude: displayList[0]?.lon ? +displayList[0].lon : -122.4194,
+    latitudeDelta:  0.01,
+    longitudeDelta: 0.01,
+  };
+
   const handleSearch = () => {
-    if (searchTerm.trim() === '') {
-      setFilteredData(buildingData);
-      setSelectedBuilding(null);
+    if (!searchTerm.trim()) {
+      setFilteredData([]);
+      setActiveMarkerId(null);
+      mapRef.current?.animateToRegion(initialRegion, 1000);
       return;
     }
-  
-    const searchResults = buildingData.filter(building => {
-      const name = building.building_name ? building.building_name.toLowerCase() : '';
-      const address = building.building_address ? building.building_address.toLowerCase() : '';
-      const zipcode = building.zipcode ? building.zipcode.toString() : '';
-  
+    const results = buildingData.filter(b => {
+      const name = b.building_name?.toLowerCase()   || '';
+      const addr = b.building_address?.toLowerCase()|| '';
+      const zip  = b.zipcode?.toString()            || '';
       return (
         name.includes(searchTerm.toLowerCase()) ||
-        address.includes(searchTerm.toLowerCase()) ||
-        zipcode.includes(searchTerm) 
+        addr.includes(searchTerm.toLowerCase()) ||
+        zip.includes(searchTerm)
       );
     });
-  
-    if (searchResults.length > 0) {
-      setSelectedBuilding(searchResults[0]);
+    setFilteredData(results);
+    if (results[0]) {
+      const target = {
+        latitude:  +results[0].lat,
+        longitude: +results[0].lon,
+        latitudeDelta:  0.005,
+        longitudeDelta: 0.005,
+      };
+      mapRef.current?.animateToRegion(target, 1000);
+      setActiveMarkerId(results[0].id);
     } else {
-      setSelectedBuilding(null);
+      setActiveMarkerId(null);
     }
-  
-    setFilteredData(searchResults);
   };
 
   return (
     <View style={styles.container}>
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#ffffff" />
+          <ActivityIndicator size="large" color="#fff" />
         </View>
       ) : error ? (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Failed to load data: {error}</Text>
+          <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : (
         <>
+          {/* Header / Logo */}
           <View style={styles.header}>
             <Image source={require('../assets/white-logo.png')} />
           </View>
 
+          {/* Search Bar */}
           <View style={styles.searchContainer}>
             <TextInput
-              placeholder="Search by name or address"
+              placeholder="Search by name, address or zip"
               placeholderTextColor="#000"
+              style={styles.searchInput}
               value={searchTerm}
               onChangeText={setSearchTerm}
-              style={styles.searchInput}
             />
             <TouchableOpacity onPress={handleSearch}>
               <MaterialIcons name="search" size={25} color="#000" />
             </TouchableOpacity>
           </View>
 
-          <MapboxGL.MapView style={styles.map}>
-            <MapboxGL.Camera
-              zoomLevel={selectedBuilding ? 17 : 14}
-              centerCoordinate={
-                selectedBuilding
-                  ? [Number(selectedBuilding.lon), Number(selectedBuilding.lat)]
-                  : [Number(buildingData?.[0]?.lon) || -122.4194, Number(buildingData?.[0]?.lat) || 37.7749]
-              }
+          {/* Layers Button */}
+        
+
+          {/* Map */}
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            initialRegion={initialRegion}
+            mapType={mapType}
+            showsUserLocation
+          >
+        
+            <UrlTile
+              urlTemplate="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+              maximumZ={19}
+              flipY={false}
             />
 
-            {(filteredData.length > 0 ? filteredData : buildingData)
-              .filter(item => item.lat && item.lon)
-              .map((building) => (
-                <MapboxGL.PointAnnotation
-                  key={building.id}
-                  id={`marker-${building.id}`}
-                  coordinate={[Number(building.lon), Number(building.lat)]}
-                  onSelected={() => setSelectedBuilding(building)}
-                >
-                  <View style={styles.marker}>
-                    <MaterialIcons name="location-pin" size={30} color="red" />
-                  </View>
-                </MapboxGL.PointAnnotation>
-              ))}
+            {displayList.filter(b => b.lat && b.lon).map(building => (
+              <Marker
+                key={building.id}
+                identifier={String(building.id)}
+                coordinate={{
+                  latitude:  +building.lat,
+                  longitude: +building.lon,
+                }}
+                onPress={() => setActiveMarkerId(building.id)}
+              >
+                <MaterialIcons name="location-pin" size={30} color="red" />
+                {activeMarkerId === building.id && (
+                  <Callout
+                    tooltip
+                    onPress={() => {
+                      navigation.navigate('BuildingDetails', { buildingData: building });
+                      setActiveMarkerId(null);
+                    }}
+                  >
+                    <View style={styles.calloutContainer}>
+                      <Text style={styles.calloutTitle}>
+                        {building.building_name}
+                      </Text>
+                      <Text style={styles.calloutSubtitle}>
+                        {building.building_address}
+                      </Text>
+                      <Text style={styles.calloutTap}>(Tap for details)</Text>
+                    </View>
+                  </Callout>
+                )}
+              </Marker>
+            ))}
+          </MapView>
 
-            {selectedBuilding && (
-              <MapboxGL.MarkerView coordinate={[Number(selectedBuilding.lon), Number(selectedBuilding.lat)]}>
+          {/* Map Type Modal */}
+          <Modal
+            visible={isMapTypeModalVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setIsMapTypeModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Select Map Type</Text>
+                <FlatList
+                  data={mapTypeOptions}
+                  keyExtractor={item => item.id}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.optionButton}
+                      onPress={() => {
+                        setMapType(item.id);
+                        setIsMapTypeModalVisible(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.optionText,
+                          item.id === mapType && styles.optionTextActive
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                />
                 <TouchableOpacity
-                  style={styles.calloutContainer}
-                  onPress={() => {
-                    navigation.navigate('BuildingDetails', { buildingData: selectedBuilding });
-                    setSelectedBuilding(null);
-                  }}
+                  style={styles.cancelButton}
+                  onPress={() => setIsMapTypeModalVisible(false)}
                 >
-                  <Text style={styles.calloutText}>{selectedBuilding.building_name || 'Unknown Building'}</Text>
-                  <Text style={styles.calloutSubText}>{selectedBuilding.building_address || 'No address available'}</Text>
+                  <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
-              </MapboxGL.MarkerView>
-            )}
-          </MapboxGL.MapView>
-        </>
-      )}
+              </View>
+            </View>
+          </Modal>
 
-      {role === 'Editor' && (
-        <TouchableOpacity onPress={() => navigation.navigate('AddBuilding')} style={styles.fab}>
-          <MaterialIcons name="add" size={40} color="#202D3D" />
-        </TouchableOpacity>
+          {/* FAB: AddBuilding for Editors */}
+          <TouchableOpacity
+            style={styles.layersButton}
+            onPress={() => setIsMapTypeModalVisible(true)}
+          >
+            <MaterialIcons name="layers" size={28} color="#fff" />
+          </TouchableOpacity>
+          {role === 'Editor' && (
+            <TouchableOpacity
+              style={styles.fab}
+              onPress={() => navigation.navigate('AddBuilding')}
+            >
+              <MaterialIcons name="add" size={40} color="#202D3D" />
+            </TouchableOpacity>
+          )}
+        </>
       )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#202D3D' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { color: 'red' },
-  header: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#942420', padding: 10 },
-  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#BABFC5', marginTop: 8, paddingHorizontal: 15, paddingVertical: 5 },
-  searchInput: { flex: 1 },
-  map: { flex: 1 },
-  marker: { alignItems: 'center', justifyContent: 'center' },
-  calloutContainer: { backgroundColor: 'white', padding: 8, borderRadius: 8, alignItems: 'center', elevation: 5 },
-  calloutText: { fontWeight: 'bold', fontSize: 14, color: '#333' },
-  calloutSubText: { fontSize: 12, color: '#666', marginTop: 4 },
-  fab: { position: 'absolute', bottom: 16, right: 16, width: 60, height: 60, backgroundColor: '#D9D9D9', borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 4 },
+  container:           { flex: 1, backgroundColor: '#202D3D' },
+  loadingContainer:    { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  errorContainer:      { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  errorText:           { color: 'red' },
+  header:              { justifyContent: 'center', alignItems: 'center', backgroundColor: '#942420', padding: 10 },
+  searchContainer:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', margin: 10, borderRadius: 8, padding: 8 },
+  searchInput:         { flex: 1, height: 40 },
+  layersButton:        { position: 'absolute', top: 150, left: 16, backgroundColor: '#942420', padding: 10, borderRadius: 25, elevation: 5 },
+  map:                 { flex: 1 },
+  calloutContainer:    { backgroundColor: '#fff', padding: 8, borderRadius: 6, elevation: 4, minWidth: 140 },
+  calloutTitle:        { fontWeight: 'bold', color: '#333' },
+  calloutSubtitle:     { color: '#666', marginTop: 4 },
+  calloutTap:          { color: '#007AFF', marginTop: 6, fontSize: 12, textAlign: 'right' },
+  modalOverlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 40 },
+  modalContent:        { backgroundColor: '#fff', borderRadius: 10, padding: 20 },
+  modalTitle:          { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+  optionButton:        { paddingVertical: 10 },
+  optionText:          { fontSize: 16, color: '#333' },
+  optionTextActive:    { color: '#942420', fontWeight: 'bold' },
+  cancelButton:        { marginTop: 10, alignItems: 'center' },
+  cancelText:          { color: 'red', fontSize: 16 },
+  fab:                 { position: 'absolute', bottom: 16, right: 16, backgroundColor: '#D9D9D9', padding: 12, borderRadius: 30 },
 });
 
 export default Home;
-
-
-

@@ -50,7 +50,7 @@ const Login = ({navigation}) => {
         const { token, data } = res.data;
         await AsyncStorage.setItem('token', token);
         await AsyncStorage.setItem('role', data.role || '');
-  
+        await AsyncStorage.setItem('user_data', JSON.stringify(data));
         Alert.alert('Success', res.data.message);
         navigation.replace('Home');
       } else {
@@ -71,12 +71,10 @@ const Login = ({navigation}) => {
   };
   
 
-  // Token exists, navigate to Home
   useEffect(() => {
     const checkToken = async () => {
       const storedToken = await AsyncStorage.getItem('token');
       if (storedToken) {
-        // Token exists, navigate to Home
         navigation.navigate('Home');
       }
     };

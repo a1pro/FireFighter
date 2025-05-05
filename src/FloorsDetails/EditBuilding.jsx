@@ -302,7 +302,7 @@ const EditBuilding = ({ navigation, route }) => {
       // Append floor details and images along with floor IDs
       selectedFloors.forEach((floor) => {
         formData.append("floor_id[]", floor.id || ""); // Existing floor id if any
-        formData.append("floor_name[]", floor.floorName || "");
+       formData.append("floor_number[]", floorNum.toString());
   
         if (floor.floorImage && floor.floorImage.uri) {
           formData.append("floor_image[]", {
@@ -320,7 +320,7 @@ const EditBuilding = ({ navigation, route }) => {
       // Append basement details and images along with basement IDs
       selectedBasements.forEach((basement) => {
         formData.append("basement_id[]", basement.id || ""); // Existing basement id if any
-        formData.append("basement_name[]", basement.basementName || "");
+        formData.append("basement_number[]", basementNum.toString());
   
         if (basement.basementImage && basement.basementImage.uri) {
           formData.append("basement_image[]", {
