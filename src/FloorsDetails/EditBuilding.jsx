@@ -472,7 +472,7 @@ const EditBuilding = ({ navigation, route }) => {
                     value={floor.floorNumber?.toString() || ""}
                     onChangeText={(text) => handleFloorNumberChange(text, index)}
                   />
-                  <View style={styles.textfieldwrapper}>
+                  {/* <View style={styles.textfieldwrapper}>
                     <Text style={styles.label}>Floor {floor.floorNumber} Name</Text>
                     <TextInput
                       placeholder={`Enter name for Floor ${floor.floorNumber}`}
@@ -480,8 +480,9 @@ const EditBuilding = ({ navigation, route }) => {
                       value={floor.floorName}
                       onChangeText={(text) => handleFloorNameChange(text, index)}
                     />
-                  </View>
-                  <TouchableOpacity style={styles.btn} onPress={() => selectImage("floor", index)}>
+                  </View> */}
+                  
+                  <TouchableOpacity style={[styles.btn,{marginTop:20}]} onPress={() => selectImage("floor", index)}>
                     <Text style={styles.btntxt}>Upload Floor Image</Text>
                   </TouchableOpacity>
                   {/* Uncomment below to show the image preview if needed */}
@@ -518,7 +519,7 @@ const EditBuilding = ({ navigation, route }) => {
                       value={basement.basementNumber?.toString() || ""}
                       onChangeText={(text) => handleBasementNumberChange(text, index)}
                     />
-                    <View style={styles.textfieldwrapper}>
+                    {/* <View style={styles.textfieldwrapper}>
                       <Text style={styles.label}>Basement {basement.basementNumber} Name</Text>
                       <TextInput
                         placeholder={`Enter name for Basement ${basement.basementNumber}`}
@@ -526,22 +527,11 @@ const EditBuilding = ({ navigation, route }) => {
                         value={basement.basementName}
                         onChangeText={(text) => handleBasementNameChange(text, index)}
                       />
-                    </View>
-                    <TouchableOpacity style={styles.btn} onPress={() => selectImage("basement", index)}>
+                    </View> */}
+                    <TouchableOpacity style={[styles.btn, { marginBottom: 20, marginTop: 20 }]} onPress={() => selectImage("basement", index)}>
                       <Text style={styles.btntxt}>Upload Basement Image</Text>
                     </TouchableOpacity>
-                    {/* Uncomment below to show the image preview if needed */}
-                    {/* {basement.basementImage && (
-                      <Image
-                        source={{
-                          uri: basement.basementImage.uri
-                            ? basement.basementImage.uri
-                            : basement.basementImage,
-                        }}
-                        style={{ width: 100, height: 100, marginTop: 10 }}
-                      />
-                    )} */}
-                  </View>
+                   </View>
                 ))}
   
               {/* Submit Button */}

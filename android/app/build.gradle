@@ -59,7 +59,7 @@ dependencies {
     implementation project(':react-native-vector-icons')
     implementation 'com.mapbox.maps:android:10.6.0' 
     implementation 'com.mapbox.mapboxsdk:mapbox-sdk-turf:5.8.0'
-
+implementation 'androidx.vectordrawable:vectordrawable-animated:1.1.0'
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {

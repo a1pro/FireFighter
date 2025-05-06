@@ -1,29 +1,51 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,ScrollView  } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+  PermissionsAndroid,
+  Platform
+} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Collapsible from 'react-native-collapsible';
+import Voice from '@react-native-voice/voice';
 
 const Faq = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [faqs, setFaqs] = useState({});
   const [loading, setLoading] = useState(true);
   const [expandedFaq, setExpandedFaq] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
     fetchFaqs();
+
+    // Attach voice event handlers
+    Voice.onSpeechResults = onSpeechResults;
+    Voice.onSpeechError = onSpeechError;
+
+    return () => {
+      // Clean up listeners
+      Voice.destroy().then(Voice.removeAllListeners);
+    };
   }, []);
 
   const fetchFaqs = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      console.log('tookkeeen', token);
       const response = await axios.get('https://firefighter.a1professionals.net/api/v1/get/faq', {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
+
       if (response.data.success) {
         setFaqs(response.data.data);
       }
@@ -43,6 +65,53 @@ const Faq = () => {
 
   const toggleExpand = (faq_id) => {
     setExpandedFaq(expandedFaq === faq_id ? null : faq_id);
+  };
+
+  const onSpeechResults = (event) => {
+    if (event.value && event.value.length > 0) {
+      setSearchQuery(event.value[0]);
+    }
+    setIsRecording(false);
+  };
+
+  const onSpeechError = (error) => {
+    console.error('Speech recognition error:', error);
+    setIsRecording(false);
+  };
+
+  const startRecording = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          console.warn('Microphone permission denied');
+          return;
+        }
+      }
+
+      setIsRecording(true);
+      await Voice.start('en-US');
+    } catch (error) {
+      console.error('Voice start error:', error);
+      setIsRecording(false);
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      await Voice.stop();
+      setIsRecording(false);
+    } catch (error) {
+      console.error('Voice stop error:', error);
+    }
+  };
+
+  const handleMicPress = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
   };
 
   const renderItem = ({ item }) => (
@@ -69,31 +138,34 @@ const Faq = () => {
 
   return (
     <ScrollView>
-    <View style={styles.container}>
-      <Text style={styles.header}>FAQ’s</Text>
+      <View style={styles.container}>
+        <Text style={styles.header}>FAQ’s</Text>
 
-      <View style={styles.searchContainer}>
-        <Icon name="search-outline" size={20} color="#888" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search topic..."
-          placeholderTextColor="#888"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      {Object.keys(faqs).map(category => (
-        <View key={category}>
-          <Text style={styles.sectionHeader}>{faqs[category].category_name}</Text>
-          <FlatList
-            data={filterFaqs(category)}
-            renderItem={renderItem}
-            keyExtractor={item => item.faq_id.toString()}
+        <View style={styles.searchContainer}>
+          <Icon name="search-outline" size={20} color="#888" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search topic..."
+            placeholderTextColor="#888"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
+          <TouchableOpacity onPress={handleMicPress}>
+            <Icon name={isRecording ? "mic-off-outline" : "mic-outline"} size={24} color={isRecording ? 'red' : '#888'} />
+          </TouchableOpacity>
         </View>
-      ))}
-    </View>
+
+        {Object.keys(faqs).map(category => (
+          <View key={category}>
+            <Text style={styles.sectionHeader}>{faqs[category].category_name}</Text>
+            <FlatList
+              data={filterFaqs(category)}
+              renderItem={renderItem}
+              keyExtractor={item => item.faq_id.toString()}
+            />
+          </View>
+        ))}
+      </View>
     </ScrollView>
   );
 };
@@ -108,7 +180,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 10,
-    textAlign:"center",
+    textAlign: "center",
   },
   searchContainer: {
     flexDirection: 'row',

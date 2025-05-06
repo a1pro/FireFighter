@@ -173,8 +173,6 @@ const Home = ({ navigation }) => {
               </Marker>
             ))}
           </MapView>
-
-          {/* Map Type Modal */}
           <Modal
             visible={isMapTypeModalVisible}
             transparent
@@ -215,8 +213,6 @@ const Home = ({ navigation }) => {
               </View>
             </View>
           </Modal>
-
-          {/* FAB: AddBuilding for Editors */}
           <TouchableOpacity
             style={styles.layersButton}
             onPress={() => setIsMapTypeModalVisible(true)}

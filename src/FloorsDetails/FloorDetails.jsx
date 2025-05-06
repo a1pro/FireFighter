@@ -15,8 +15,6 @@ import axios from 'axios';
 import ImageUpload from '../component/ImageUpload';
 
 const { width, height } = Dimensions.get('window');
-
-// Enable layout animation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -28,7 +26,8 @@ const layoutAnimation = () => {
 const FloorDetails = ({ route }) => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  const { selectedFloor, lat, lon, buildingId, floorId: initialFloorId, basementId, floorNumber, basementNumber } = route.params;
+  const { selectedFloor, lat, lon, buildingId, floorId: initialFloorId, basementId} = route.params;
+
   const buildingData = useSelector(state => state.getbuildingdata.data);
 
   const initialType = basementId ? 'basement' : 'floor';
@@ -389,20 +388,6 @@ const FloorDetails = ({ route }) => {
     }
   };
 
-  // const handleSelectFloor = (floor) => {
-  //   setSelectedFloorData(floor);
-  //   setCurrentFloorId(floor.id);
-  //   handleGetIcons(Number(floor.id));
-  //   if (floor.latitude && floor.longitude) {
-  //     setMapRegion({
-  //       latitude: Number(floor.latitude),
-  //       longitude: Number(floor.longitude),
-  //       latitudeDelta: 0.001,
-  //       longitudeDelta: 0.001,
-  //     });
-  //   }
-  //   setFloorModalVisible(false);
-  // };
   const computeIconSize = () => {
     const baseDelta = 0.001;
     const baseSize = 40;

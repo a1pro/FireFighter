@@ -17,6 +17,7 @@
     "@react-native-firebase/messaging": "^21.12.0",
     "@react-native-masked-view/masked-view": "^0.3.2",
     "@react-native-picker/picker": "^2.11.0",
+    "@react-native-voice/voice": "^3.2.4",
     "@react-native/gradle-plugin": "^0.79.1",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
