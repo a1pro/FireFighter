@@ -12,7 +12,7 @@ import styles from '../screens/styles/Styles';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import axios from 'axios';
-import { Base_url } from '../utils/ApiKey';
+import {Base_url} from '../utils/ApiKey';
 
 const validationSchema = yup.object().shape({
   password: yup
@@ -94,7 +94,7 @@ const ResetPassword = ({navigation, route}) => {
                     secureTextEntry={!showPassword}
                     placeholderTextColor="#BABFC5"
                     style={[
-                      styles.textfield,
+                      // styles.textfield,
                       {flex: 1, borderWidth: 0, paddingLeft: 0, marginTop: 0},
                     ]}
                     onChangeText={handleChange('password')}
@@ -128,7 +128,7 @@ const ResetPassword = ({navigation, route}) => {
                     secureTextEntry={!showConfirmPassword}
                     placeholderTextColor="#BABFC5"
                     style={[
-                      styles.textfield,
+                      // styles.textfield,
                       {flex: 1, borderWidth: 0, paddingLeft: 0, marginTop: 0},
                     ]}
                     onChangeText={handleChange('confirmPassword')}
@@ -155,8 +155,7 @@ const ResetPassword = ({navigation, route}) => {
               <TouchableOpacity
                 onPress={handleSubmit}
                 style={[styles.btn, {marginTop: 20}]}
-                disabled={loading}
-                >
+                disabled={loading}>
                 {loading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (

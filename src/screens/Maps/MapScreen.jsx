@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   StyleSheet,
@@ -7,25 +7,26 @@ import {
   TouchableOpacity,
   Alert,
   Image,
-} from "react-native";
-import MapView, { Marker, UrlTile } from "react-native-maps";
-import { useRoute, useNavigation } from "@react-navigation/native";
-import axios from "axios";
-import Icon from "react-native-vector-icons/Ionicons";
+} from 'react-native';
+import MapView, {Marker, UrlTile} from 'react-native-maps';
+import {useRoute, useNavigation} from '@react-navigation/native';
+import axios from 'axios';
+import Icon from 'react-native-vector-icons/Ionicons';
+import {SafeAreaView} from 'react-native';
 
-const API_KEY = "9313fcf6cb4945dfbf94b6cadfdae5ce";
-const OPENCAGE_API_URL = "https://api.opencagedata.com/geocode/v1/json";
+const API_KEY = '9313fcf6cb4945dfbf94b6cadfdae5ce';
+const OPENCAGE_API_URL = 'https://api.opencagedata.com/geocode/v1/json';
 
 const MapScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
-  const { businessAddress } = route.params || {};
+  const {businessAddress} = route.params || {};
 
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const [formattedAddress, setFormattedAddress] = useState("");
+  const [formattedAddress, setFormattedAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
-  const [mapType, setMapType] = useState("standard");
+  const [mapType, setMapType] = useState('standard');
   const [showMapTypeOptions, setShowMapTypeOptions] = useState(false);
 
   const mapRef = useRef(null);
@@ -36,7 +37,7 @@ const MapScreen = () => {
     }
   }, [businessAddress]);
 
-  const geocodeAddress = async (address) => {
+  const geocodeAddress = async address => {
     try {
       setLoading(true);
       const response = await axios.get(OPENCAGE_API_URL, {
@@ -47,8 +48,8 @@ const MapScreen = () => {
       });
       const result = response.data.results[0];
       if (result) {
-        const { lat, lng } = result.geometry;
-        setSelectedLocation({ latitude: lat, longitude: lng });
+        const {lat, lng} = result.geometry;
+        setSelectedLocation({latitude: lat, longitude: lng});
         setFormattedAddress(result.formatted);
         setShowPopup(true);
         mapRef.current?.animateToRegion({
@@ -59,8 +60,8 @@ const MapScreen = () => {
         });
       }
     } catch (error) {
-      console.error("Geocoding error:", error);
-      Alert.alert("Error", "Failed to locate the address on map.");
+      console.error('Geocoding error:', error);
+      Alert.alert('Error', 'Failed to locate the address on map.');
     } finally {
       setLoading(false);
     }
@@ -79,23 +80,23 @@ const MapScreen = () => {
         setFormattedAddress(result.formatted);
         setShowPopup(true);
       } else {
-        setFormattedAddress("Unknown location");
+        setFormattedAddress('Unknown location');
       }
     } catch (error) {
-      console.error("Reverse geocoding error:", error);
+      console.error('Reverse geocoding error:', error);
     }
   };
 
-  const handleMapPress = async (e) => {
-    const { latitude, longitude } = e.nativeEvent.coordinate;
-    setSelectedLocation({ latitude, longitude });
+  const handleMapPress = async e => {
+    const {latitude, longitude} = e.nativeEvent.coordinate;
+    setSelectedLocation({latitude, longitude});
     await reverseGeocode(latitude, longitude);
   };
 
   const handleConfirmLocation = () => {
     if (!selectedLocation) return;
     navigation.goBack();
-    navigation.navigate("AddBuilding", {
+    navigation.navigate('AddBuilding', {
       selectedAddress: formattedAddress,
       latitude: selectedLocation.latitude,
       longitude: selectedLocation.longitude,
@@ -103,126 +104,127 @@ const MapScreen = () => {
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      {loading && (
-        <ActivityIndicator size="large" color="#007bff" style={styles.loader} />
-      )}
-
-      <MapView
-        ref={mapRef}
-        style={{ flex: 1 }}
-        mapType={mapType}
-        onPress={handleMapPress}
-        initialRegion={{
-          latitude: selectedLocation?.latitude || 30.7046,
-          longitude: selectedLocation?.longitude || 76.7179,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }}
-      >
-        <UrlTile
-          urlTemplate="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-          maximumZ={19}
-          flipY={false}
-        />
-
-        {selectedLocation && (
-          <Marker
-            coordinate={selectedLocation}
-            draggable={true}
-            onDragEnd={async (e) => {
-              const { latitude, longitude } = e.nativeEvent.coordinate;
-              setSelectedLocation({ latitude, longitude });
-              await reverseGeocode(latitude, longitude);
-              mapRef.current?.animateToRegion({
-                latitude,
-                longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              });
-            }}
+    <SafeAreaView style={{flex: 1}}>
+      <View style={{flex: 1}}>
+        {loading && (
+          <ActivityIndicator
+            size="large"
+            color="#007bff"
+            style={styles.loader}
           />
         )}
-      </MapView>
 
-      {/* Layer Button */}
-      <TouchableOpacity
-        style={styles.layerButton}
-        onPress={() => setShowMapTypeOptions(!showMapTypeOptions)}
-      >
-        <Icon name="layers-outline" size={28} color="#007bff" />
-      </TouchableOpacity>
-
-      {/* Map Type Options */}
-      {showMapTypeOptions && (
-        <View style={styles.mapTypeOptions}>
-          {["standard", "satellite", "terrain"].map((type) => (
-            <TouchableOpacity
-              key={type}
-              style={styles.mapTypeOption}
-              onPress={() => {
-                setMapType(type);
-                setShowMapTypeOptions(false);
-              }}
-            >
-              <Text style={{ textTransform: "capitalize" }}>{type}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {/* Location Preview Popup */}
-      {showPopup && formattedAddress ? (
-        <View style={styles.popupContainer}>
-          <Image
-            source={{
-              uri:
-                "https://cdn.pixabay.com/photo/2016/11/29/05/08/architecture-1867782_1280.jpg",
-            }}
-            style={styles.popupImage}
+        <MapView
+          ref={mapRef}
+          style={{flex: 1}}
+          mapType={mapType}
+          onPress={handleMapPress}
+          initialRegion={{
+            latitude: selectedLocation?.latitude || 30.7046,
+            longitude: selectedLocation?.longitude || 76.7179,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          }}>
+          <UrlTile
+            urlTemplate="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+            maximumZ={19}
+            flipY={false}
           />
-          <View style={styles.popupTextContainer}>
-            <Text style={styles.popupTitle}>Selected Location</Text>
-            <Text style={styles.popupAddress}>{formattedAddress}</Text>
-            <TouchableOpacity
-              style={styles.confirmBtn}
-              onPress={handleConfirmLocation}
-            >
-              <Icon name="checkmark-circle" size={20} color="#fff" />
-              <Text style={{ color: "#fff", marginLeft: 6 }}>
-                Confirm Location
-              </Text>
-            </TouchableOpacity>
+
+          {selectedLocation && (
+            <Marker
+              coordinate={selectedLocation}
+              draggable={true}
+              onDragEnd={async e => {
+                const {latitude, longitude} = e.nativeEvent.coordinate;
+                setSelectedLocation({latitude, longitude});
+                await reverseGeocode(latitude, longitude);
+                mapRef.current?.animateToRegion({
+                  latitude,
+                  longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                });
+              }}
+            />
+          )}
+        </MapView>
+
+        {/* Layer Button */}
+        <TouchableOpacity
+          style={styles.layerButton}
+          onPress={() => setShowMapTypeOptions(!showMapTypeOptions)}>
+          <Icon name="layers-outline" size={28} color="#007bff" />
+        </TouchableOpacity>
+
+        {/* Map Type Options */}
+        {showMapTypeOptions && (
+          <View style={styles.mapTypeOptions}>
+            {['standard', 'satellite', 'terrain'].map(type => (
+              <TouchableOpacity
+                key={type}
+                style={styles.mapTypeOption}
+                onPress={() => {
+                  setMapType(type);
+                  setShowMapTypeOptions(false);
+                }}>
+                <Text style={{textTransform: 'capitalize'}}>{type}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        </View>
-      ) : null}
-    </View>
+        )}
+
+        {/* Location Preview Popup */}
+        {showPopup && formattedAddress ? (
+          <View style={styles.popupContainer}>
+            <Image
+              source={{
+                uri: 'https://cdn.pixabay.com/photo/2016/11/29/05/08/architecture-1867782_1280.jpg',
+              }}
+              style={styles.popupImage}
+            />
+            <View style={styles.popupTextContainer}>
+              <Text style={styles.popupTitle}>Selected Location</Text>
+              <Text style={styles.popupAddress}>{formattedAddress}</Text>
+              <TouchableOpacity
+                style={styles.confirmBtn}
+                onPress={handleConfirmLocation}>
+                <Icon name="checkmark-circle" size={20} color="#fff" />
+                <Text style={{color: '#fff', marginLeft: 6}}>
+                  Confirm Location
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   loader: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
     marginLeft: -15,
     marginTop: -15,
     zIndex: 10,
   },
   popupContainer: {
-    position: "absolute",
+    position: 'absolute',
     bottom: 20,
     left: 20,
     right: 20,
-    backgroundColor: "white",
+    backgroundColor: 'white',
     borderRadius: 12,
-    flexDirection: "row",
+    flexDirection: 'row',
     elevation: 6,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowRadius: 4,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
   popupImage: {
     width: 100,
@@ -231,42 +233,42 @@ const styles = StyleSheet.create({
   popupTextContainer: {
     flex: 1,
     padding: 10,
-    justifyContent: "space-between",
+    justifyContent: 'space-between',
   },
   popupTitle: {
-    fontWeight: "bold",
+    fontWeight: 'bold',
     fontSize: 16,
     marginBottom: 4,
   },
   popupAddress: {
     fontSize: 13,
-    color: "#555",
+    color: '#555',
   },
   confirmBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#007bff",
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007bff',
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 6,
     marginTop: 10,
-    alignSelf: "flex-start",
+    alignSelf: 'flex-start',
   },
   layerButton: {
-    position: "absolute",
+    position: 'absolute',
     top: 20,
     right: 20,
-    backgroundColor: "white",
+    backgroundColor: 'white',
     padding: 10,
     borderRadius: 30,
     elevation: 4,
     zIndex: 11,
   },
   mapTypeOptions: {
-    position: "absolute",
+    position: 'absolute',
     top: 65,
     right: 20,
-    backgroundColor: "white",
+    backgroundColor: 'white',
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 10,

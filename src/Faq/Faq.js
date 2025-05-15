@@ -9,9 +9,10 @@ import {
   ActivityIndicator,
   ScrollView,
   PermissionsAndroid,
-  Platform
+  Platform,
+  Pressable
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import Icon from 'react-native-vector-icons/FontAwesome5';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Collapsible from 'react-native-collapsible';
@@ -27,12 +28,15 @@ const Faq = () => {
   useEffect(() => {
     fetchFaqs();
 
-    // Attach voice event handlers
-    Voice.onSpeechResults = onSpeechResults;
-    Voice.onSpeechError = onSpeechError;
+    Voice.onSpeechResults = (e) => {
+
+      setSearchQuery(e.value[0] || '');
+      setIsRecording(false);
+    };
+    Voice.onSpeechEnd = () => setIsRecording(false);
+    Voice.onSpeechError = () => setIsRecording(false);
 
     return () => {
-      // Clean up listeners
       Voice.destroy().then(Voice.removeAllListeners);
     };
   }, []);
@@ -80,30 +84,21 @@ const Faq = () => {
   };
 
   const startRecording = async () => {
-    try {
-      if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          console.warn('Microphone permission denied');
-          return;
-        }
-      }
+    setSearchQuery('');
+    setIsRecording(true);
 
-      setIsRecording(true);
+    try {
       await Voice.start('en-US');
-    } catch (error) {
-      console.error('Voice start error:', error);
+    } catch (e) {
       setIsRecording(false);
     }
   };
 
   const stopRecording = async () => {
+    setIsRecording(false);
     try {
       await Voice.stop();
-      setIsRecording(false);
-    } catch (error) {
-      console.error('Voice stop error:', error);
-    }
+    } catch (e) { }
   };
 
   const handleMicPress = () => {
@@ -142,7 +137,7 @@ const Faq = () => {
         <Text style={styles.header}>FAQ’s</Text>
 
         <View style={styles.searchContainer}>
-          <Icon name="search-outline" size={20} color="#888" style={styles.searchIcon} />
+          <Icon name="search" size={20} color="#888" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search topic..."
@@ -150,9 +145,20 @@ const Faq = () => {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-          <TouchableOpacity onPress={handleMicPress}>
+          <Pressable
+            onPressIn={startRecording}
+            onPressOut={stopRecording}
+            style={styles.micButton}
+          >
+            <Icon
+              name={isRecording ? "microphone" : "microphone-alt"}
+              size={24}
+              color={isRecording ? 'red' : '#888'}
+            />
+          </Pressable>
+          {/* <TouchableOpacity onPress={isRecording ? stopRecording : startRecording}>
             <Icon name={isRecording ? "mic-off-outline" : "mic-outline"} size={24} color={isRecording ? 'red' : '#888'} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         {Object.keys(faqs).map(category => (

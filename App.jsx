@@ -1,11 +1,11 @@
 import {NavigationContainer} from '@react-navigation/native';
-import {StatusBar} from 'react-native';
+import {StatusBar, LogBox} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import StackNavigation from './src/navigation/StackNavigation';
-import { Provider } from 'react-redux';
-import store from './src/redux/store'
+import {Provider} from 'react-redux';
+import store from './src/redux/store';
 
-
+LogBox.ignoreAllLogs();
 function App() {
   return (
     <Provider store={store}>

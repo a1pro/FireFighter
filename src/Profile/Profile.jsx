@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,12 @@ import {
 } from 'react-native';
 import styles from '../screens/styles/Styles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Formik } from 'formik';
+import {Formik} from 'formik';
 import * as yup from 'yup';
 import axios from 'axios';
-import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Ionicons';
+import {SafeAreaView} from 'react-native';
 
 const validationSchema = yup.object().shape({
   first_name: yup.string().required('First name is required'),
@@ -25,7 +26,7 @@ const validationSchema = yup.object().shape({
   zipcode: yup.string().required('Zip code is required'),
 });
 
-const Profile = ({ navigation }) => {
+const Profile = ({navigation}) => {
   const [profilePic, setProfilePic] = useState('');
   const [initialValues, setInitialValues] = useState({
     first_name: '',
@@ -89,12 +90,15 @@ const Profile = ({ navigation }) => {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data',
           },
-        }
+        },
       );
 
       if (response.data.success) {
         Alert.alert('Success', response.data.message);
-        await AsyncStorage.setItem('user_data', JSON.stringify(response.data.data));
+        await AsyncStorage.setItem(
+          'user_data',
+          JSON.stringify(response.data.data),
+        );
       } else {
         Alert.alert('Error', response.data.message || 'Update failed.');
       }
@@ -107,7 +111,7 @@ const Profile = ({ navigation }) => {
   const handleLogout = async () => {
     try {
       Alert.alert('Confirm Logout', 'Are you sure you want to log out?', [
-        { text: 'Cancel', style: 'cancel' },
+        {text: 'Cancel', style: 'cancel'},
         {
           text: 'OK',
           onPress: async () => {
@@ -144,94 +148,132 @@ const Profile = ({ navigation }) => {
               }
             }),
         },
-        { text: 'Cancel', style: 'cancel' },
+        {text: 'Cancel', style: 'cancel'},
       ],
-      { cancelable: true }
+      {cancelable: true},
     );
   };
 
   return (
     <>
-      <View style={{ alignItems: 'center', backgroundColor: '#942420' }}>
-        <Text style={styles.h3}>Profile</Text>
-        <View style={{ position: 'relative' }}>
-          <Image
-            source={
-              profilePic
-                ? { uri: profilePic }
-                : require('../assets/dummy-user-profile.png')
-            }
-            style={{
-              width: 120,
-              height: 120,
-              marginTop: 30,
-              marginBottom: 10,
-              borderRadius: 20,
-            }}
-          />
-          <TouchableOpacity
-            style={styles.editIcon}
-            onPress={handleEditProfileImage}>
-            <Icon name="camera" size={24} color="#fff" />
-          </TouchableOpacity>
+      <SafeAreaView style={{flex: 1}}>
+        <View style={{alignItems: 'center', backgroundColor: '#942420'}}>
+          <Text style={styles.h3}>Profile</Text>
+          <View style={{position: 'relative'}}>
+            <Image
+              source={
+                profilePic
+                  ? {uri: profilePic}
+                  : require('../assets/dummy-user-profile.png')
+              }
+              style={{
+                width: 120,
+                height: 120,
+                marginTop: 30,
+                marginBottom: 10,
+                borderRadius: 20,
+              }}
+            />
+            <TouchableOpacity
+              style={styles.editIcon}
+              onPress={handleEditProfileImage}>
+              <Icon name="camera" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View style={styles.container}>
-          <Formik
-            enableReinitialize
-            initialValues={initialValues}
-            validationSchema={validationSchema}
-            onSubmit={handleSubmit}>
-            {({
-              handleChange,
-              handleBlur,
-              handleSubmit,
-              values,
-              errors,
-              touched,
-            }) => (
-              <View style={{ flex: 1, alignItems: 'center', marginTop: 30 }}>
-                {[
-                  { name: 'first_name', label: 'First Name', placeholder: 'Enter first name' },
-                  { name: 'last_name', label: 'Last Name', placeholder: 'Enter last name' },
-                  { name: 'username', label: 'User Name', placeholder: 'Enter user name' },
-                  { name: 'email', label: 'Email', placeholder: 'Enter email', editable: false },
-                  { name: 'phonenumber', label: 'Phone No', placeholder: 'Enter phone number', keyboardType: 'phone-pad' },
-                  { name: 'zipcode', label: 'Zip Code', placeholder: 'Enter zip code' },
-                ].map(field => (
-                  <View key={field.name} style={styles.textfieldwrapper}>
-                    <Text style={styles.label}>{field.label}</Text>
-                    <TextInput
-                      placeholder={field.placeholder}
-                      style={styles.textfield}
-                      onChangeText={handleChange(field.name)}
-                      onBlur={handleBlur(field.name)}
-                      value={values[field.name]}
-                      editable={field.editable !== false}
-                      keyboardType={field.keyboardType || 'default'}
-                    />
-                    {touched[field.name] && errors[field.name] && (
-                      <Text style={styles.errortext}>{errors[field.name]}</Text>
-                    )}
-                  </View>
-                ))}
+        <ScrollView contentContainerStyle={{flexGrow: 1}}>
+          <View style={styles.container}>
+            <Formik
+              enableReinitialize
+              initialValues={initialValues}
+              validationSchema={validationSchema}
+              onSubmit={handleSubmit}>
+              {({
+                handleChange,
+                handleBlur,
+                handleSubmit,
+                values,
+                errors,
+                touched,
+              }) => (
+                <View style={{flex: 1, alignItems: 'center', marginTop: 30}}>
+                  {[
+                    {
+                      name: 'first_name',
+                      label: 'First Name',
+                      placeholder: 'Enter first name',
+                    },
+                    {
+                      name: 'last_name',
+                      label: 'Last Name',
+                      placeholder: 'Enter last name',
+                    },
+                    {
+                      name: 'username',
+                      label: 'User Name',
+                      placeholder: 'Enter user name',
+                    },
+                    {
+                      name: 'email',
+                      label: 'Email',
+                      placeholder: 'Enter email',
+                      editable: false,
+                    },
+                    {
+                      name: 'phonenumber',
+                      label: 'Phone No',
+                      placeholder: 'Enter phone number',
+                      keyboardType: 'phone-pad',
+                    },
+                    {
+                      name: 'zipcode',
+                      label: 'Zip Code',
+                      placeholder: 'Enter zip code',
+                    },
+                  ].map(field => (
+                    <View key={field.name} style={styles.textfieldwrapper}>
+                      <Text style={styles.label}>{field.label}</Text>
+                      <TextInput
+                        placeholder={field.placeholder}
+                        style={styles.textfield}
+                        onChangeText={handleChange(field.name)}
+                        onBlur={handleBlur(field.name)}
+                        value={values[field.name]}
+                        editable={field.editable !== false}
+                        keyboardType={field.keyboardType || 'default'}
+                      />
+                      {touched[field.name] && errors[field.name] && (
+                        <Text style={styles.errortext}>
+                          {errors[field.name]}
+                        </Text>
+                      )}
+                    </View>
+                  ))}
 
-                <TouchableOpacity
-                  style={[styles.btn, { width: '100%', marginTop: 20, marginBottom: 20 }]}
-                  onPress={handleSubmit}>
-                  <Text style={styles.btntxt}>Save</Text>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.btn,
+                      {width: '100%', marginTop: 20, marginBottom: 20},
+                    ]}
+                    onPress={handleSubmit}>
+                    <Text style={styles.btntxt}>Save</Text>
+                  </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.btn, { width: '100%', marginTop: 10, marginBottom: 20 }]} onPress={handleLogout}>
-                  <Text style={styles.btntxt}>Logout</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </Formik>
-        </View>
-      </ScrollView>
+                  <TouchableOpacity
+                    style={[
+                      styles.btn,
+                      {width: '100%', marginTop: 10, marginBottom: 20},
+                    ]}
+                    onPress={handleLogout}>
+                    <Text style={styles.btntxt}>Logout</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </Formik>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     </>
   );
 };

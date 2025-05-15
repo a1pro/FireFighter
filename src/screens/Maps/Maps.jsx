@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   StyleSheet,
@@ -7,11 +7,12 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
-import MapView, { Marker, UrlTile } from 'react-native-maps';
-import { useDispatch, useSelector } from 'react-redux';
+import MapView, {Marker, UrlTile} from 'react-native-maps';
+import {useDispatch, useSelector} from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { getBuilding } from '../../redux/GetBuildingSlice';
-import { useNavigation } from '@react-navigation/native';
+import {getBuilding} from '../../redux/GetBuildingSlice';
+import {useNavigation} from '@react-navigation/native';
+import {SafeAreaView} from 'react-native';
 
 const Maps = () => {
   const dispatch = useDispatch();
@@ -26,105 +27,129 @@ const Maps = () => {
 
   const [mapType, setMapType] = useState('standard');
   const [isModalVisible, setModalVisible] = useState(false);
-  const [selectedBuilding, setSelectedBuilding] = useState(null); 
+  const [selectedBuilding, setSelectedBuilding] = useState(null);
 
   const mapTypes = [
-    { id: 'standard', label: 'Standard' },
-    { id: 'satellite', label: 'Satellite' },
-    { id: 'hybrid', label: 'Hybrid' },
-    { id: 'terrain', label: 'Terrain' },
+    {id: 'standard', label: 'Standard'},
+    {id: 'satellite', label: 'Satellite'},
+    {id: 'hybrid', label: 'Hybrid'},
+    {id: 'terrain', label: 'Terrain'},
   ];
 
   return (
-    <View style={styles.container}>
-      <MapView
-
-        style={styles.map}
-        mapType={mapType}
-        initialRegion={{
-          latitude: buildingData?.[0]?.lat ? parseFloat(buildingData[0].lat) : 37.7749,
-          longitude: buildingData?.[0]?.lon ? parseFloat(buildingData[0].lon) : -122.4194,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        }}
-      >
-        <UrlTile
-          urlTemplate="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-          maximumZ={19}
-          flipY={false}
-        />
-
-        
-        {buildingData.map(building => (
-          <Marker
-            key={building.id}
-            coordinate={{
-              latitude: parseFloat(building.lat),
-              longitude: parseFloat(building.lon),
-            }}
-            zIndex={9999}
-            onPress={() => setSelectedBuilding(building)}
+    <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
+        <MapView
+          style={styles.map}
+          mapType={mapType}
+          initialRegion={{
+            latitude: buildingData?.[0]?.lat
+              ? parseFloat(buildingData[0].lat)
+              : 37.7749,
+            longitude: buildingData?.[0]?.lon
+              ? parseFloat(buildingData[0].lon)
+              : -122.4194,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          }}>
+          <UrlTile
+            urlTemplate="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+            maximumZ={19}
+            flipY={false}
           />
-        ))}
-      </MapView>
 
-      <TouchableOpacity style={styles.mapTypeButton} onPress={() => setModalVisible(true)}>
-        <Icon name="layers" size={24} color="white" />
-      </TouchableOpacity>
-
-    
-      <Modal visible={isModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Select Map Type</Text>
-            <FlatList
-              data={mapTypes}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity style={styles.optionButton} onPress={() => setMapType(item.id)}>
-                  <Text style={styles.optionText}>{item.label}</Text>
-                </TouchableOpacity>
-              )}
+          {buildingData.map(building => (
+            <Marker
+              key={building.id}
+              coordinate={{
+                latitude: parseFloat(building.lat),
+                longitude: parseFloat(building.lon),
+              }}
+              zIndex={9999}
+              onPress={() => setSelectedBuilding(building)}
             />
-            <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
-              <Text style={styles.closeButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+          ))}
+        </MapView>
 
-    
-      {selectedBuilding && (
-        <Modal
-          visible={true}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setSelectedBuilding(null)}
-        >
+        <TouchableOpacity
+          style={styles.mapTypeButton}
+          onPress={() => setModalVisible(true)}>
+          <Icon name="layers" size={24} color="white" />
+        </TouchableOpacity>
+
+        <Modal visible={isModalVisible} transparent animationType="slide">
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>{selectedBuilding.building_name}</Text>
-              <Text>{selectedBuilding.building_address}</Text>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Select Map Type</Text>
+              <FlatList
+                data={mapTypes}
+                keyExtractor={item => item.id}
+                renderItem={({item}) => (
+                  <TouchableOpacity
+                    style={styles.optionButton}
+                    onPress={() => setMapType(item.id)}>
+                    <Text style={styles.optionText}>{item.label}</Text>
+                  </TouchableOpacity>
+                )}
+              />
               <TouchableOpacity
-                style={styles.detailsButton}
-                onPress={() => {
-                  setSelectedBuilding(null);
-                  navigation.navigate('BuildingDetails', { buildingData: selectedBuilding });
-                }}
-              >
-                <Text style={styles.detailsButtonText}>View Details</Text>
+                style={styles.closeButton}
+                onPress={() => setModalVisible(false)}>
+                <Text style={styles.closeButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
-      )}
-    </View>
+
+        {selectedBuilding && (
+          <Modal
+            visible={true}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setSelectedBuilding(null)}>
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <TouchableOpacity
+                  onPress={() => setSelectedBuilding(null)}
+                  style={{
+                    position: 'absolute',
+                    top: -15,
+                    right: -15,
+                    backgroundColor: 'red',
+                    width: 35,
+                    height: 35,
+                    borderRadius: 20,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                  <Text style={{color: '#fff', fontSize: 18}}>✖</Text>
+                </TouchableOpacity>
+                <Text style={styles.modalTitle}>
+                  {selectedBuilding.building_name}
+                </Text>
+                <Text>{selectedBuilding.building_address}</Text>
+                <TouchableOpacity
+                  style={styles.detailsButton}
+                  onPress={() => {
+                    setSelectedBuilding(null);
+                    navigation.navigate('BuildingDetails', {
+                      buildingData: selectedBuilding,
+                    });
+                  }}>
+                  <Text style={styles.detailsButtonText}>View Details</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        )}
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  map: { flex: 1 },
+  container: {flex: 1},
+  map: {flex: 1},
   mapTypeButton: {
     position: 'absolute',
     bottom: 30,

@@ -1,13 +1,14 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    marginLeft: 15,
-    marginRight: 15,
+    // marginLeft: 15,
+    // marginRight: 15,
+    paddingHorizontal: 15
   },
-  scrollContainer:{
-    flexGrow:1
+  scrollContainer: {
+    flexGrow: 1
   },
   h1: {
     fontSize: 24,
@@ -29,12 +30,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '500',
     lineHeight: 30,
-    color:'#000',
+    color: '#000',
   },
   h5: {
     fontSize: 18,
     fontWeight: '500',
-    color:'#ffff',
+    color: '#ffff',
   },
   h6: {
     fontSize: 18,
@@ -51,41 +52,42 @@ const styles = StyleSheet.create({
   btn: {
     fontWeight: '500',
     padding: 15,
-    borderRadius:8,
+    borderRadius: 8,
     backgroundColor: '#942420',
     // width: 233,
-    paddingTop:15,
-    paddingBottom:15
+    paddingTop: 15,
+    paddingBottom: 15
   },
-  btntxt:{
-    color:'#ffff',
-    textAlign:'center',
-    fontWeight:'700',
-    fontSize:17,
+  btntxt: {
+    color: '#ffff',
+    textAlign: 'center',
+    fontWeight: '700',
+    fontSize: 17,
   },
-  textfield:{
-    backgroundColor:'#ffff',
-    borderRadius:8,
-    fontSize:16,
-    borderWidth:1,
-    borderColor:'#BABFC5',
-    marginTop:8,
-    paddingLeft:15
+  textfield: {
+    backgroundColor: '#ffff',
+    borderRadius: 8,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#BABFC5',
+    marginTop: 8,
+    paddingLeft: 15,
+    height: 45
   },
-  textfieldwrapper:{
+  textfieldwrapper: {
     width: '100%',
     marginBottom: 15,
   },
-  label:{
-    fontSize:16,
-    color:'#21252C',
-    fontWeight:'600'
+  label: {
+    fontSize: 16,
+    color: '#21252C',
+    fontWeight: '600'
   },
-  errortext:{
-    color:'red',
-    fontWeight:'500',
-    fontSize:14,
-    marginTop:5
+  errortext: {
+    color: 'red',
+    fontWeight: '500',
+    fontSize: 14,
+    marginTop: 5
   },
   otpContainer: {
     flexDirection: 'row',
@@ -100,8 +102,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 24,
     margin: 5,
-    borderColor:'#942420',
-    color:'#000'
+    borderColor: '#942420',
+    color: '#000'
   },
   iconContainer: {
     alignItems: 'center',

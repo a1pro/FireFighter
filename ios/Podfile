@@ -13,10 +13,13 @@ if linkage != nil
   Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
   use_frameworks! :linkage => linkage.to_sym
 end
-
+rn_maps_path = '../node_modules/react-native-maps'
 target 'FireFighter' do
   config = use_native_modules!
-
+ pod 'react-native-maps', :path => rn_maps_path
+  pod 'react-native-maps-generated', :path => rn_maps_path
+  use_frameworks! :linkage => :static
+  $RNFirebaseAsStaticFramework = true
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.
